@@ -9,24 +9,46 @@ discovery, line counts, test inventory, and a grep pass — and hands you a list
 Output lands in `.sieve/xray/`: `facts.json` (the mechanical layer, per pack), and the narrative
 files below, which you write by reading the source facts.json points at.
 
-## Phase 0 — run the mechanical layer
+## Phase 0 — run the mechanical layer, static analysis first
 
 ```
-sieve xray web3 [--slither report.json] [--aderyn report.json]
+sieve xray web3 [--slither report.json] [--aderyn report.json] [--no-auto-static]
 sieve xray web  [--openapi doc.json] [--har capture.har] [--url-list urls.txt]
 sieve xray git                                   # git-history security pass, any pack
 sieve xray map                                   # renders xray/architecture.json you write below
 ```
 
-Slither/Aderyn output (web3) and OpenAPI/HAR/URL-list input (web) are **corroboration**, not the
-x-ray's source of truth — a detector finding lands in `facts.json["tool_leads"]` exactly like a
-Solodit precedent (`knowledge.md`): real, but gated (`judging.md`) before it ships. The x-ray never
-depends on either being installed; their absence is coverage-debt, never a silent gap
-(`shared-rules.md`).
+**Static analysis is not something the operator supplies if they happen to have it lying around —
+it's this command's own first move.** `sieve xray web3` auto-invokes `slither` and `aderyn` itself
+(exactly the invocation named in `local-tooling.md` 2.1) whenever they're on PATH and no
+`--slither`/`--aderyn` path was given, writes their raw JSON to `.sieve/xray/{slither,aderyn}.json`,
+and folds the result into `facts.json["tool_leads"]` before you ever start reading source by hand.
+Check the printed `auto-ran: ...` line — if it's empty and neither flag was passed, the tool
+genuinely isn't installed on this host (run `sieve doctor`, then `setup.md`) or the project failed
+to compile (read the note, fix the build, re-run); either way that's now a recorded, visible gap,
+never a silent one. `--no-auto-static` is the explicit opt-out for a target where running a
+compiler-dependent tool isn't safe or desired (e.g. an unverified bytecode-only target — go straight
+to `heimdall-rs`/`panoramix` decompilation instead, `local-tooling.md` 2.1).
 
-Print what came back before reading further: file count, nSLOC, candidate count. This is the
-receipt that Phase 0 actually ran — a summary you narrate without having called the command did
-not happen.
+**Why static analysis runs before you read a single line of source, not after:** a detector's
+finding is cheap, mechanical, and exhaustive in a way a first read never is — it will not miss a
+function because it looked boring. Reading `tool_leads` before Phase 1's manual walk means every
+hand-read of an entry point starts already knowing what the two best-maintained detector suites in
+the ecosystem think is wrong with it, instead of rediscovering the same access-control gap by eye an
+hour later. A detector finding is still a LEAD, still gated by `judging.md` like a Solodit precedent
+(`knowledge.md`) — the ordering change is about when you see it, not about trusting it more.
+
+A detector finding is real but gated (`judging.md`) before it ships, exactly like a Solodit
+precedent. OpenAPI/HAR/URL-list input (web) works the same way in spirit but can't be auto-run the
+same way — it depends on a live target and the engagement's active-testing permission
+(`.sieve/case.md`'s `rules.active_testing`), so it stays operator/agent-supplied from a prior recon
+pass rather than something this command launches on its own; run that recon pass (`local-tooling.md`
+1.1) as literally the first action of the web x-ray, before manual browsing, for the same reason.
+Either pack's tool absence is coverage-debt, never a silent gap (`shared-rules.md`).
+
+Print what came back before reading further: file count, nSLOC, candidate count, and (web3) which
+static tools actually ran. This is the receipt that Phase 0 actually ran — a summary you narrate
+without having called the command did not happen.
 
 ## Phase 1 — read the source, classify what grep found
 

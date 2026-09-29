@@ -36,6 +36,7 @@ when the default doesn't fit the target.
 | Cloud asset exposure | `cloud_enum` | `S3Scanner`, `GCPBucketBrute`, `CloudBrute` |
 | Secrets in accessible repos/history | `trufflehog` | `gitleaks`, `shhgit`, a manual `.git` directory dump + `git log -p` if the directory itself is exposed |
 | WAF fingerprinting (informs payload strategy, never a target to defeat for its own sake) | `wafw00f` | Burp's passive detection |
+| Headless browser automation against a target with real anti-bot defenses (Cloudflare/Akamai/PerimeterX/DataDome) | **CloakBrowser** (`CloakHQ/CloakBrowser`) | A source-patched, stealth Chromium — drop-in for Playwright/Puppeteer/Selenium — worth reaching for the moment `katana`/a normal headless browser gets challenge-paged or fingerprinted off a JS-heavy target. `playwright-stealth`/`undetected-chromedriver` are the older, more fragile config-level alternative (JS-injected patches a fingerprint check can detect; CloakBrowser's patches are source-level, compiled in). Route its traffic through Burp's proxy (1.2) to get the same interception/replay workflow with the anti-bot problem solved underneath it. |
 
 ### 1.2 Interception & manual testing — the core of the web strand
 
@@ -103,20 +104,26 @@ the target publishes one, is the other structured input `sieve xray web --openap
 
 ## 2 · Web3
 
-### 2.1 Static analysis — corroboration, not the x-ray's source of truth
+### 2.1 Static analysis — the x-ray's own first move, not operator-supplied corroboration
+
+`sieve xray web3` auto-invokes `slither` and `aderyn` itself the moment they're on PATH — see
+`references/xray.md` Phase 0. Install both; running one instead of both is a coverage gap, not a
+choice, since their detector sets overlap but don't agree often enough to skip either.
 
 | Tool | What it's strongest at |
 |---|---|
-| `slither` | The default first pass — fast, mature detector set, machine-readable JSON `sieve xray web3 --slither` ingests directly. |
-| `aderyn` | A faster, Rust-native alternative with an overlapping but non-identical detector set — run both; they don't always agree. |
-| `mythril` | Symbolic execution — different coverage than either of the above, strong on arithmetic/reachability questions for a single function. |
+| `slither` | The default first pass — fast, mature detector set. Auto-run by `sieve xray web3`. |
+| `aderyn` | A faster, Rust-native alternative with an overlapping but non-identical detector set. Auto-run by `sieve xray web3` alongside slither, never instead of it. |
+| `mythril` | Symbolic execution — different coverage than either of the above, strong on arithmetic/reachability questions for a single function. Not auto-run (slow enough that blocking the x-ray on it is the wrong tradeoff) — run it by hand on the handful of functions the auto-run pass or your own read flagged as arithmetic-heavy. |
 | `semgrep` (with a Solidity ruleset, or a hand-written rule) | The right tool once you know a specific anti-pattern's shape — the "what changed" method's step 4 is often a one-line semgrep rule instead of a manual grep sweep. |
 | `4naly3er` | Gas-and-pattern static pass — most of its findings are Do-Not-Report by `packs/web3/judging.md`, but it occasionally surfaces a real access-control gap alongside the noise. |
 | Wake (`wake detect`) | Ackee Blockchain's Python-based framework — detectors plus a scriptable analysis layer when a one-off custom check is worth writing. |
 | `surya` / `sol2uml` | Call-graph and inheritance-graph visualization — read before writing `xray/architecture.json` by hand on a large, deeply-inherited codebase. |
+| **`heimdall-rs`** (CLI: `heimdall`, installer: `bifrost`) | **Not just a decompiler for missing-source targets** — `heimdall decompile` (pseudo-Solidity from bytecode), `heimdall disassemble` (raw opcodes), `heimdall cfg` (control-flow graph), and `heimdall dump` (a storage-layout dump straight off a deployed contract's actual slots, which catches a proxy/upgrade storage-collision that reading the *source's* declared layout alone would miss — run it even on a verified target when a delegatecall/proxy pattern is in play). |
+| `panoramix` | An older EVM decompiler, still worth a second pass alongside `heimdall-rs` when its output disagrees or one tool's decompilation is unusually lossy on a specific target's bytecode patterns. |
 
-**Unverified or bytecode-only targets:** `panoramix` or `heimdall-rs` decompile EVM bytecode back
-to pseudo-Solidity when no source is published — every finding from a decompiled target carries
+**Unverified or bytecode-only targets:** `heimdall-rs`/`panoramix` decompile EVM bytecode back to
+pseudo-Solidity when no source is published — every finding from a decompiled target carries
 `confidence: heuristic` (`references/scope-intake.md`). `ethersplay` (a Binary Ninja plugin) and
 `evm-cfg-builder` are the control-flow-graph route when a decompiler's output is too lossy to
 reason about directly.
@@ -244,11 +251,24 @@ fastest way to build a proof.
 
 ## Wiring tool output into an engagement
 
-Everything above lands as a file; Sieve only ever reads files it's told about — nothing here
-calls out to a tool on its own:
+Two different wiring shapes, by whether a tool is safe and local (no target network access,
+no active-testing permission needed) or requires one:
+
+**Auto-run.** `slither`/`aderyn` need nothing but the source already on disk — `sieve xray web3`
+launches them itself the moment they're on PATH; no flag needed. Override only to point at a report
+you already generated with non-default flags, or to opt out entirely:
 
 ```
-sieve xray web3 --slither .sieve/xray/slither.json --aderyn .sieve/xray/aderyn.json
+sieve xray web3                                                      # auto-runs slither + aderyn
+sieve xray web3 --slither custom-run.json                            # use this instead of auto-running
+sieve xray web3 --no-auto-static                                     # skip both — coverage-debt, recorded
+```
+
+**Operator-supplied.** Everything that touches a live target (web recon output, an OpenAPI/HAR
+capture) needs the engagement's active-testing permission and a network call this skill never
+issues on its own — run the real tool yourself, then hand Sieve the file:
+
+```
 sieve xray web --openapi api-docs/openapi.json --har burp-export.har --url-list all-urls.txt
 ```
 

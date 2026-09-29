@@ -1,22 +1,34 @@
-"""Web3 x-ray: mechanical facts only — discovery, nSLOC, test inventory, and a grep-only
-entry-point scan across VMs.
+"""Web3 x-ray: mechanical facts only — discovery, nSLOC, test inventory, a grep-only entry-point
+scan across VMs, and (new) auto-invoking Slither/Aderyn when they're on PATH.
 
-This deliberately does NOT parse or classify code. Grep is the source of truth for *which lines
-are candidate entry points* (cheap, exact, language-agnostic), and the agent reads the source to
-classify each one (permissionless / role-gated / admin), verified by re-reading the exact
-`file:line` this scan names. A Python
-parser that tried to do the classification would be re-implementing Slither/Aderyn worse than
-they do it — run those instead (see references/local-tooling.md) and treat their findings as
-corroborating leads, the same way a Solodit precedent is a lead: real, but gated before it ships.
+This deliberately does NOT parse or classify code itself. Grep is the source of truth for *which
+lines are candidate entry points* (cheap, exact, language-agnostic), and the agent reads the source
+to classify each one (permissionless / role-gated / admin), verified by re-reading the exact
+`file:line` this scan names. A Python parser that tried to do the classification would be
+re-implementing Slither/Aderyn worse than they do it.
+
+Running Slither/Aderyn themselves is a different thing from re-implementing them, and belongs here:
+this module already shells out to nothing dangerous (it's a read-only source walk), so shelling out
+to a real static analyzer — capturing its own JSON, unmodified — is the same category of mechanical
+work as the grep pass, not a step up in judgment. `run()` auto-invokes both tools when they're
+installed and no report path was explicitly given; their result still lands in `tool_leads`, still
+gated by `judging.md` before it ships, exactly as if the operator had run them by hand and passed
+the path in. See references/xray.md Phase 0 — this used to be operator-supplied corroboration;
+it's now the mechanical layer's own first move, and only falls back to "operator must supply it" or
+"missing, coverage-debt" when the binary genuinely isn't on PATH.
 """
 from __future__ import annotations
 
 import os
 import re
+import shutil
+import subprocess
 from collections import defaultdict
 from typing import Any, Dict, List, Optional, Tuple
 
 from . import util
+
+AUTO_RUN_TIMEOUT_SEC = 300
 
 EXCLUDE_DIRS = {"node_modules", "lib", "artifacts", "cache", "out", "broadcast", "coverage", "typechain",
                 "typechain-types", "interfaces", "interface", "mocks", "mock", "test", "tests", ".git", "target",
@@ -197,8 +209,47 @@ def _aderyn_leads(path: str) -> List[Dict[str, Any]]:
     return out
 
 
+def _auto_run_slither(root: str, out_dir: str) -> Tuple[Optional[str], Optional[str]]:
+    """Shell out to an installed `slither`, exactly the invocation `local-tooling.md` 2.1 names.
+    Returns (json_path, failure_note) — exactly one is non-None. Slither's own exit code is not a
+    reliable success signal (it can be non-zero purely because detectors fired), so success is
+    judged by whether it wrote a parseable JSON file, not by its return code."""
+    exe = shutil.which("slither")
+    if not exe:
+        return None, None
+    out_path = os.path.join(out_dir, "slither.json")
+    cmd = [exe, root, "--json", out_path]
+    try:
+        subprocess.run(cmd, cwd=root, capture_output=True, text=True, timeout=AUTO_RUN_TIMEOUT_SEC)
+    except subprocess.TimeoutExpired:
+        return None, f"slither: auto-run timed out after {AUTO_RUN_TIMEOUT_SEC}s (coverage-debt — run manually with a longer budget)"
+    except OSError as exc:
+        return None, f"slither: auto-run failed to launch ({exc})"
+    if not os.path.isfile(out_path):
+        return None, "slither: auto-run produced no JSON output (likely a compilation failure — check the project builds, then run manually)"
+    return out_path, None
+
+
+def _auto_run_aderyn(root: str, out_dir: str) -> Tuple[Optional[str], Optional[str]]:
+    """Shell out to an installed `aderyn`, mirroring `_auto_run_slither`'s success/failure shape."""
+    exe = shutil.which("aderyn")
+    if not exe:
+        return None, None
+    out_path = os.path.join(out_dir, "aderyn.json")
+    cmd = [exe, root, "--output", out_path]
+    try:
+        subprocess.run(cmd, cwd=root, capture_output=True, text=True, timeout=AUTO_RUN_TIMEOUT_SEC)
+    except subprocess.TimeoutExpired:
+        return None, f"aderyn: auto-run timed out after {AUTO_RUN_TIMEOUT_SEC}s (coverage-debt — run manually with a longer budget)"
+    except OSError as exc:
+        return None, f"aderyn: auto-run failed to launch ({exc})"
+    if not os.path.isfile(out_path):
+        return None, "aderyn: auto-run produced no JSON output (likely a compilation failure — check the project builds, then run manually)"
+    return out_path, None
+
+
 def run(root: str, src_dirs: Optional[List[str]] = None, slither_json: Optional[str] = None,
-        aderyn_json: Optional[str] = None) -> Dict[str, Any]:
+        aderyn_json: Optional[str] = None, auto_static: bool = True) -> Dict[str, Any]:
     root = os.path.abspath(root)
     dirs = src_dirs or detect_src_dirs(root)
     files, skipped = discover(root, dirs)
@@ -208,17 +259,44 @@ def run(root: str, src_dirs: Optional[List[str]] = None, slither_json: Optional[
         f["nsloc"] = nsloc(util.read_text(os.path.join(root, f["path"])), f["lang"])
         total += f["nsloc"]
         by_sub[_subsystem(f["path"], dirs)] += f["nsloc"]
+
     leads: List[Dict[str, Any]] = []
     notes: List[str] = []
+    auto_ran: List[str] = []
+    auto_failed: Dict[str, str] = {}
+    out_dir = os.path.join(root, ".sieve", "xray")
+
+    # Static analysis is the mechanical layer's first move, not operator-supplied corroboration:
+    # auto-invoke every installed tool unless the caller already handed us a report or opted out.
+    if auto_static:
+        os.makedirs(out_dir, exist_ok=True)
+        if not slither_json:
+            slither_json, note = _auto_run_slither(root, out_dir)
+            if slither_json:
+                auto_ran.append("slither")
+            elif note:
+                auto_failed["slither"] = note
+        if not aderyn_json:
+            aderyn_json, note = _auto_run_aderyn(root, out_dir)
+            if aderyn_json:
+                auto_ran.append("aderyn")
+            elif note:
+                auto_failed["aderyn"] = note
+
     for path, loader, name in ((slither_json, _slither_leads, "slither"), (aderyn_json, _aderyn_leads, "aderyn")):
         if not path:
+            if name in auto_failed:
+                notes.append(auto_failed[name])
+            else:
+                notes.append(f"{name}: not installed / no report supplied — coverage-debt (local-tooling.md 2.1)")
             continue
         try:
             leads += loader(path)
         except (OSError, ValueError, KeyError) as exc:
             notes.append(f"{name} {path}: {exc}")
+
     return {"pack": "web3", "root": root, "generated": util.now_iso(), "src_dirs": dirs,
             "languages": sorted({f["lang"] for f in files}), "files": files, "skipped": skipped,
             "nsloc_total": total, "by_subsystem": dict(by_sub),
             "entry_candidates": grep_entries(root, files), "tests": _tests(root),
-            "tool_leads": leads, "notes": notes}
+            "tool_leads": leads, "auto_ran": auto_ran, "notes": notes}

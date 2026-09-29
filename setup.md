@@ -42,11 +42,14 @@ go install github.com/lc/gau/v2/cmd/gau@latest
 go install github.com/hahwul/dalfox/v2@latest
 pip install sqlmap
 # Burp Suite: download from portswigger.net/burp; install extensions from the BApp Store inside the app.
+# CloakBrowser (stealth Chromium for bot-defended targets — local-tooling.md 1.1):
+# see github.com/CloakHQ/CloakBrowser for the current binary/build flow, it's not a package-manager install.
 
 # --- Web3 ---
 curl -L https://foundry.paradigm.xyz | bash && foundryup
 pip install slither-analyzer mythril semgrep
 cargo install aderyn
+curl -L https://get.heimdall.rs | bash && bifrost   # heimdall-rs: bytecode decompile/disassemble/cfg/dump
 # Echidna / Medusa: grab the release binary for your platform from their GitHub releases.
 
 # --- Binary / mobile ---

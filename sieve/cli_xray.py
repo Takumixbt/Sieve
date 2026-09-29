@@ -26,8 +26,12 @@ def _write_facts(eng: Engagement, facts: Dict[str, Any]) -> str:
 
 def cmd_web3(args: argparse.Namespace) -> int:
     eng = Engagement.require()
-    facts = xray_web3.run(eng.root, slither_json=args.slither, aderyn_json=args.aderyn)
+    facts = xray_web3.run(eng.root, slither_json=args.slither, aderyn_json=args.aderyn,
+                           auto_static=not args.no_auto_static)
     path = _write_facts(eng, facts)
+    if facts["auto_ran"]:
+        print(f"static analysis: auto-ran {', '.join(facts['auto_ran'])} (local-tooling.md 2.1) "
+              f"— .sieve/xray/{{tool}}.json written")
     print(f"web3: {len(facts['files'])} file(s), {facts['nsloc_total']} nSLOC, "
           f"{len(facts['entry_candidates'])} entry-point candidate(s), {len(facts['tool_leads'])} tool lead(s)")
     for n in facts["skipped"] + facts["notes"]:
@@ -85,8 +89,12 @@ def register(sub: Any) -> None:
     xs = p.add_subparsers(dest="xcmd", required=True)
 
     q = xs.add_parser("web3")
-    q.add_argument("--slither", help="path to `slither . --json <path>` output")
-    q.add_argument("--aderyn", help="path to `aderyn . --output <path>` output")
+    q.add_argument("--slither", help="path to `slither . --json <path>` output "
+                   "(skips the auto-run if given)")
+    q.add_argument("--aderyn", help="path to `aderyn . --output <path>` output "
+                   "(skips the auto-run if given)")
+    q.add_argument("--no-auto-static", action="store_true",
+                   help="don't auto-invoke installed slither/aderyn — leave the gap as coverage-debt")
     q.set_defaults(func=cmd_web3)
 
     q = xs.add_parser("web")
