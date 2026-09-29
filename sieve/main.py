@@ -13,7 +13,8 @@ MODULES = [
     "sieve.cli_kb",
     "sieve.cli_vault",
     "sieve.cli_xray",
-    "sieve.cli_findings",
+    "sieve.cli_pass",
+    "sieve.cli_validate",
     "sieve.cli_report",
     "sieve.cli_setup",
 ]

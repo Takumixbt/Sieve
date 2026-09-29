@@ -79,6 +79,26 @@ def add(eng: Engagement, kind: str, component: str, pack: str = "", lens: str = 
         return rid
 
 
+def add_many(eng: Engagement, items: Iterable[Dict[str, Any]]) -> int:
+    """Bulk, idempotent seeding under one lock (one read, one write). Returns rows actually added."""
+    added = 0
+    with util.file_lock(_lock(eng)):
+        rows = load(eng)
+        seen = {(r["kind"], r["pack"], r["component"], r["lens"]) for r in rows}
+        for it in items:
+            key = (it["kind"], it.get("pack", ""), it["component"], it.get("lens", "*"))
+            if key in seen:
+                continue
+            seen.add(key)
+            rows.append({"id": _next_id(rows), "kind": key[0], "pack": key[1], "component": key[2], "lens": key[3],
+                         "source": it.get("source", "seed"), "status": "open", "prio": it.get("prio", 3),
+                         "attempts": 0, "note": it.get("note", ""), "updated": util.now_iso()})
+            added += 1
+        if added:
+            _save(eng, rows)
+    return added
+
+
 def _find(rows: List[Dict[str, str]], rid: str) -> Dict[str, str]:
     for r in rows:
         if r["id"] == rid:

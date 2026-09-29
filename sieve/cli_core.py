@@ -101,7 +101,7 @@ def _phase_gate(eng: Engagement, target: str, force: bool, reason: str) -> None:
     elif target == "converge":
         if int(st.get("pass_current") or 0) < 1:
             problems.append("no hunt pass has run")
-        if st.get("pass_step") not in ("merge", "done"):
+        if st.get("pass_step") not in ("absorb", "done"):
             problems.append(f"pass {st.get('pass_current')} is not merged (step: {st.get('pass_step') or 'start'})")
     elif target == "gate":
         if fs["open"] > 0:
@@ -109,11 +109,10 @@ def _phase_gate(eng: Engagement, target: str, force: bool, reason: str) -> None:
     elif target == "prove":
         from .flow import _unjudged
         if _unjudged(eng):
-            problems.append("candidates not yet judged: " + ", ".join(_unjudged(eng)[:6]))
+            problems.append("candidates not yet judged by a verifier: " + ", ".join(_unjudged(eng)[:6]))
     elif target == "report":
-        from .flow import _unproven
-        if _unproven(eng):
-            problems.append("C/H/M findings without a proof receipt: " + ", ".join(_unproven(eng)[:6]))
+        from . import validate
+        problems += validate.blockers(eng)[:12]
     if problems and not force:
         raise SystemExit("sieve phase: cannot enter %r yet:\n  - %s\n(`--force --reason \"...\"` records a waiver "
                          "that the report prints as coverage debt)" % (target, "\n  - ".join(problems)))
@@ -150,11 +149,12 @@ def cmd_pass(args: argparse.Namespace) -> int:
 
     def fn(st: Dict[str, Any]) -> None:
         st["pass_current"] = args.n
-        st["pass_step"] = "bundle"
+        st["pass_step"] = ""
+        st["waiting"] = None
         st["passes_planned"] = max(int(st.get("passes_planned") or 1), args.n)
     eng.update(fn)
     os.makedirs(eng.path("raw", f"pass-{args.n}"), exist_ok=True)
-    print(f"pass {args.n} started. NEXT: `sieve bundle --all`")
+    print(f"pass {args.n} started. NEXT: `sieve bundle --all` (prints every bundle's line count)")
     return 0
 
 
@@ -234,6 +234,9 @@ def cmd_frontier(args: argparse.Namespace) -> int:
         print(f"{args.id}: reopened")
     elif a == "stats":
         print(json.dumps(frontier.stats(eng), indent=2))
+    elif a == "seed":
+        from .cli_pass import cmd_seed
+        return cmd_seed(args)
     return 0
 
 
@@ -315,7 +318,7 @@ def cmd_finish(args: argparse.Namespace) -> int:
     if not os.path.isfile(eng.path("report", "report.md")):
         problems.append("no report assembled (`sieve report`)")
     if not os.path.isfile(eng.path("xray", "architecture.svg")):
-        problems.append("no map (`sieve map`)")
+        problems.append("no map (`sieve xray map`)")
     if problems and not args.force:
         raise SystemExit("sieve finish: not finished:\n  - " + "\n  - ".join(problems))
     if problems and args.force:
@@ -399,6 +402,9 @@ def register(sub: Any) -> None:
     q.add_argument("id")
     q.add_argument("--note")
     fs.add_parser("stats")
+    q = fs.add_parser("seed", help="fill the frontier from the x-ray (files, entry points, leads, invariants, endpoints)")
+    q.add_argument("--dry-run", action="store_true")
+    q.add_argument("--max-entries", type=int, default=500)
     p.set_defaults(func=cmd_frontier)
 
     p = sub.add_parser("halt", help="stop honestly to ask a human (scope|credentials|irreversible)")

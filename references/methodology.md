@@ -344,7 +344,7 @@ learning the question is worth more than memorizing either incident.
    agent before mitigations; EchoLeak was zero-click, fully chained, end to end. Whenever a target
    embeds or orchestrates an LLM/agent, "the model refused" or "the agent said it wouldn't" is not
    evidence — only an externally-observable side effect is
-   (`packs/web/agents/ai-native-appsec.md`'s proof-oracle discipline, which generalizes to any
+   (`packs/web/agents/ai-native-appsec-agent.md`'s proof-oracle discipline, which generalizes to any
    AI-adjacent finding regardless of pack).
 
 ---

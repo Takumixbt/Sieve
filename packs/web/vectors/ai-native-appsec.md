@@ -1,6 +1,6 @@
 # AI-native application security
 
-Companion vector catalog to `packs/web/agents/ai-native-appsec.md` — see that file for the full
+Companion vector catalog to `packs/web/agents/ai-native-appsec-agent.md` — see that file for the full
 technique breakdown, proof-oracle discipline, and false-positive traps this category needs. Every
 card below traces to a real 2026 incident or a peer-reviewed/vendor-disclosed finding: EchoLeak
 (CVE-2025-32711), the 40+ MCP CVE wave, Anthropic's own browser-agent hijack-rate disclosure,
