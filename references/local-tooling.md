@@ -19,8 +19,8 @@ per-OS commands including native Windows/PowerShell.
 ### Burp Suite — the core of the web strand
 
 Burp is the proxy of record: every authenticated request the agent needs to replay, every
-multi-identity comparison (the sibling rule — `agents/access-control-agent.md`), every race
-condition (`agents/race-condition-agent.md`) goes through it or through something driven from it.
+multi-identity comparison (the sibling rule — `packs/web/agents/access-control-agent.md`), every race
+condition (`packs/web/agents/business-logic-agent.md`) goes through it or through something driven from it.
 Community edition covers manual replay and Repeater; Professional adds Intruder concurrency
 control (needed for real race testing) and the extension ecosystem below.
 
@@ -30,14 +30,14 @@ control (needed for real race testing) and the extension ecosystem below.
 |---|---|
 | **Autorize** | The sibling rule, automated: replay every request under a lower-privilege session and flag the ones that still succeed. Runs continuously in the background while you browse as the higher-privileged user. |
 | **AuthMatrix** | A structured authorization matrix (roles × endpoints) when Autorize's single-session model isn't enough — multi-tenant apps, more than two privilege levels. |
-| **Turbo Intruder** | True concurrent request firing for race-condition proof (`agents/race-condition-agent.md`'s proof oracle). A single-threaded send is not a proof; this is. |
+| **Turbo Intruder** | True concurrent request firing for race-condition proof (`packs/web/agents/business-logic-agent.md`'s proof oracle). A single-threaded send is not a proof; this is. |
 | **Param Miner** | Hidden/unlinked parameters and headers, and the cache-poisoning workflow (unkeyed input detection). |
 | **JS Link Finder** / **GAP** | Endpoint extraction from JS bundles — the "read the JS, find the API the UI doesn't show you" step, done properly instead of with a regex. |
 | **Backslash Powered Scanner** | Finds injection-shaped behavior (not payload-shaped) — catches filters the payload-based active scanner misses. |
-| **JWT Editor** | `alg:none`, key confusion, `kid` injection, signature stripping — the concrete moves in `agents/access-control-agent.md`'s JWT section. |
+| **JWT Editor** | `alg:none`, key confusion, `kid` injection, signature stripping — the concrete moves in `packs/web/agents/access-control-agent.md`'s JWT section. |
 | **Logger++** | Full request/response history with filtering — the evidence trail a finding's `proof:` field cites. |
 | **ActiveScan++** | Extends the built-in scanner's coverage (host header attacks, more SSRF/SSTI shapes). |
-| **Retire.js** | Flags outdated JS libraries with known CVEs while you browse — feeds `agents/supply-chain-agent.md`. |
+| **Retire.js** | Flags outdated JS libraries with known CVEs while you browse — feeds `packs/web/agents/supply-chain-agent.md`. |
 | **Collaborator Everywhere** | Auto-inserts Burp Collaborator payloads into every request for passive OAST coverage (blind SSRF, XXE) without hand-placing them. |
 | **Hackvertor** | Payload encoding/transformation chains for WAF-adjacent testing. |
 | **Piper** | Pipes traffic through external CLI tools (nuclei, custom scripts) from inside Burp. |
@@ -102,7 +102,7 @@ slither . --json .sieve/xray/slither.json
 aderyn . --output .sieve/xray/aderyn.json
 ```
 
-Fold every High/Medium finding into the hit list at PRIME (`learning-loop.md`), tagged
+Fold every High/Medium finding into the hit list at PRIME (`knowledge.md`'s write-back section), tagged
 `source: slither` / `source: aderyn`, and gate it exactly like any other lead — a detector
 finding is not a finding until it clears `judging.md`.
 
