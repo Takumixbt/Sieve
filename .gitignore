@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+*.pyo
+.sieve/
+.pytest_cache/
+*.egg-info/
+.DS_Store
+/kb/index.db
+/kb/index.db-*
