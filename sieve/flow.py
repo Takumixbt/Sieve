@@ -37,6 +37,9 @@ def next_action(eng: Engagement) -> Tuple[str, str]:
         return "DONE", "Engagement finished. Report is in .sieve/report/."
     if st.get("halt_reason"):
         return "HALTED", f"Halted: {st['halt_reason']}. Resolve it, then `sieve continue`."
+    from . import campaign
+    if campaign.active(eng):
+        return campaign.next_action(eng)
 
     if phase == "init":
         if not _card_filled(eng):

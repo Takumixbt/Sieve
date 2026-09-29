@@ -106,6 +106,9 @@ def cmd_lint(args: argparse.Namespace) -> int:
             for req in ("name", "owns", "tier"):
                 if req not in meta:
                     problems.append(f"{os.path.relpath(f, repo_root())}: frontmatter missing `{req}`")
+            if meta.get("name") and str(meta["name"]) != os.path.splitext(os.path.basename(f))[0]:
+                problems.append(f"{os.path.relpath(f, repo_root())}: `name: {meta['name']}` does not match the file name "
+                                f"(bundles, slugs and the roster all key on it)")
 
     readme = os.path.join(repo_root(), "agents", "README.md")
     if os.path.isfile(readme):
@@ -122,12 +125,16 @@ def cmd_lint(args: argparse.Namespace) -> int:
         if not os.path.isfile(jp):
             problems.append(f"packs/{pack}/judging.md is missing (referenced by references/judging.md)")
 
+    from .cli_campaign import lint_default_topology
+    problems += lint_default_topology()
+
     if problems:
         print(f"{len(problems)} problem(s):")
         for p in problems:
             print(f"  - {p}")
         return 1
-    print(f"clean: {len(cards)} vector card(s), all agent files and pack judging.md present")
+    print(f"clean: {len(cards)} vector card(s), all agent files, pack judging.md, and the campaign topology "
+          f"(every profile, prompts, rules, contracts) check out")
     return 0
 
 

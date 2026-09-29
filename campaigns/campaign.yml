@@ -1,0 +1,294 @@
+# The Sieve campaign topology — a DAG the engine schedules and the orchestrator's agents execute.
+#   sieve campaign init --profile default      copies this to .sieve/campaign/topology.yml (edit it freely)
+#   sieve campaign run | next | submit | status | dashboard
+#
+# Node kinds
+#   meta       run by the engine itself (mechanical: x-ray, rules, seed, merge, gates, proof runs, report)
+#   agentic    run by a dispatched agent; the engine renders its prompt and validates the artifact it wrote
+#   reference  a static document inlined into the prompts of nodes that depend on it
+#
+# Rules the engine enforces: unique ids, every dependency resolves, no cycles, exactly ONE primary output per
+# node, every agentic node declares an output with a versioned contract (campaign_schema.py), and a node is
+# done only when its artifact validates. `repeat` expands a node into N copies (series = each waits for the
+# previous, parallel = independent); `matrix` fans one node out per value (one per lens, one per roster agent).
+version: 1
+name: sieve-static-campaign
+description: >
+  Static-analysis campaign: x-ray and rules, threat model, goal plan, eight independent invariant lenses merged,
+  a dynamic strategy node, looped roster hunts merged and absorbed, a roaming pass, a triage panel with a
+  deterministic reportability gate, machine-run proofs with negative controls, an independence audit, report.
+
+profiles:
+  smoke:                       # a fast, shallow pass: does the machinery run, and is anything obviously wrong
+    hunt_loops: 1
+    triage_quorum: 2
+    lenses: [accounting, authority, adversary-profit]
+    roster: core
+    skip: [independence-audit, audit-gate]
+  default:                     # the everyday engagement
+    hunt_loops: 2
+    triage_quorum: 2
+    lenses: all
+    roster: all
+    skip: []
+  exhaustive:                  # when the bounty is large and the target is worth a long look
+    hunt_loops: 3
+    triage_quorum: 3
+    lenses: all
+    roster: all
+    skip: []
+
+nodes:
+  # ------------------------------------------------------------------ references (inlined into prompts)
+  - id: ref-methodology
+    kind: reference
+    file: references/methodology.md
+  - id: ref-judging
+    kind: reference
+    file: references/judging.md
+
+  # ------------------------------------------------------------------ 1. x-ray, static analysis first
+  - id: phase-xray
+    kind: meta
+    action: phase
+    arg: xray
+    description: Enter the x-ray phase (refuses until the scope card lists something in scope).
+  - id: xray
+    kind: meta
+    action: xray
+    depends_on: [phase-xray]
+    description: Mechanical x-ray — file discovery, entry-point grep, Slither/Aderyn/trailmark auto-run, git-history pass, web surface merge.
+    outputs:
+      - {name: facts, path: xray/facts.json, primary: true}
+  - id: rules
+    kind: meta
+    action: rules
+    depends_on: [xray]
+    description: Static rule pass — anti-pattern regexes and vector tells become frontier rows.
+    outputs:
+      - {name: hits, path: xray/rule-hits.json, primary: true}
+  - id: narrative-web3
+    kind: agentic
+    packs: [web3]
+    prompt: xray-narrative-web3.md
+    depends_on: [xray, rules]
+    description: Classify every entry point, write the x-ray verdict, the invariants and the architecture map (web3).
+    outputs:
+      - {name: narrative, path: xray, schema: xray-narrative@1, primary: true}
+  - id: narrative-web
+    kind: agentic
+    packs: [web]
+    prompt: xray-narrative-web.md
+    depends_on: [xray, rules, narrative-web3]
+    description: Build the identity x endpoint x object authorization model and the x-ray verdict (web).
+    outputs:
+      - {name: narrative, path: xray, schema: authz-model@1, primary: true}
+  - id: narrative-binary
+    kind: agentic
+    packs: [binary]
+    prompt: xray-narrative-binary.md
+    depends_on: [xray, rules, narrative-web3, narrative-web]
+    description: Enumerate the attack surface — every input boundary, its trust level and memory-safety class (binary/mobile).
+    outputs:
+      - {name: narrative, path: xray, schema: attack-surface@1, primary: true}
+  - id: precedents
+    kind: meta
+    action: prime
+    depends_on: [narrative-web3, narrative-web, narrative-binary]
+    description: Prime from the knowledge base — precedents and your own lessons (kb prime).
+    outputs:
+      - {name: precedents, path: xray/precedents.md, primary: true}
+
+  # ------------------------------------------------------------------ 2. threat model -> goal plan
+  - id: threat-model
+    kind: agentic
+    prompt: threat-model.md
+    depends_on: [narrative-web3, narrative-web, narrative-binary, precedents, rules, ref-methodology]
+    description: Who can do what to which asset, and where the trust boundaries are.
+    outputs:
+      - {name: threat-model, path: campaign/artifacts/threat-model.json, schema: threat-model@1, primary: true}
+  - id: goal-plan
+    kind: agentic
+    prompt: goal-plan.md
+    depends_on: [threat-model]
+    description: Turn the threat model into ranked, checkable goals and state what will NOT be hunted.
+    outputs:
+      - {name: goals, path: campaign/artifacts/goal-plan.json, schema: goal-plan@1, primary: true}
+
+  # ------------------------------------------------------------------ 3. property design: eight lenses, fanned in
+  - id: lens
+    kind: agentic
+    prompt: invariants-lens.md
+    matrix: {lens: $lenses}
+    depends_on: [goal-plan, narrative-web3, narrative-web, narrative-binary, ref-methodology]
+    description: One lens derives invariants cold, without seeing the other lenses.
+    outputs:
+      - {name: properties, path: "campaign/artifacts/lens-{lens}.json", schema: properties@1, primary: true}
+  - id: invariants-merge
+    kind: agentic
+    prompt: invariants-merge.md
+    depends_on: [lens]
+    description: Fan-in — merge duplicates, drop the vacuous, rank by damage if broken.
+    outputs:
+      - {name: merged, path: campaign/artifacts/invariants-merged.json, schema: properties-merged@1, primary: true}
+  - id: strategy
+    kind: agentic
+    prompt: strategy.md
+    depends_on: [invariants-merge, goal-plan, rules, ref-methodology]
+    description: Dynamic strategy generator — hypotheses no roster lens owns, with at least one moonshot.
+    outputs:
+      - {name: strategy, path: campaign/artifacts/strategy.json, schema: strategy@1, primary: true}
+
+  # ------------------------------------------------------------------ 4. seed, plan, prime -> hunt
+  - id: seed
+    kind: meta
+    action: seed
+    depends_on: [invariants-merge, strategy, rules]
+    description: Render the campaign artifacts into the files bundles read; seed the frontier from x-ray, goals, invariants, strategies.
+  - id: phase-prime
+    kind: meta
+    action: phase
+    arg: prime
+    depends_on: [seed]
+  - id: plan
+    kind: meta
+    action: plan
+    depends_on: [phase-prime]
+    description: Render the ranked hit list (.sieve/plan.md).
+    outputs:
+      - {name: plan, path: plan.md, primary: true}
+  - id: phase-hunt
+    kind: meta
+    action: phase
+    arg: hunt
+    depends_on: [plan]
+
+  # ------------------------------------------------------------------ 5. the hunt: roster lenses x loops
+  - id: hunt
+    kind: agentic
+    builder: bundle
+    check: rollcall
+    matrix: {agent: $roster}
+    repeat: {count: $hunt_loops, var: loop, mode: series}
+    depends_on: [phase-hunt, {spec: hunt-merge, where: {loop: "{loop-1}"}}]
+    description: One roster agent, one pass. Its bundle carries scope, x-ray, plan, frontier rows, method and its own lens.
+    outputs:
+      - {name: raw, path: "raw/pass-{loop}/{slug}.md", schema: rollcall, primary: true}
+  - id: hunt-merge
+    kind: meta
+    action: pass-merge
+    repeat: {count: $hunt_loops, var: loop, mode: series}
+    depends_on: [{spec: hunt, where: {loop: "{loop}"}}]
+    description: Roll call, merge (deterministic checks, nothing promoted), absorb (rows close only with receipts).
+  - id: roaming
+    kind: agentic
+    builder: roaming
+    check: rollcall-roaming
+    depends_on: [{spec: hunt-merge, where: {loop: $hunt_loops}}]
+    description: The roaming pass — no lens, no cards; three hypothesis classes nobody on the roster owned.
+    outputs:
+      - {name: raw, path: raw/roaming.md, schema: rollcall, primary: true}
+  - id: roaming-merge
+    kind: meta
+    action: pass-merge
+    arg: roaming
+    depends_on: [roaming]
+  - id: drain
+    kind: agentic
+    prompt: drain.md
+    check: frontier-drained
+    depends_on: [roaming-merge]
+    description: Close every remaining frontier row with a receipt (finding, clean with an inversion, or dead across three rungs).
+    outputs:
+      - {name: report, path: campaign/artifacts/drain.md, primary: true}
+
+  # ------------------------------------------------------------------ 6. converge, gate: triage panel + reportability
+  - id: phase-converge
+    kind: meta
+    action: phase
+    arg: converge
+    depends_on: [drain]
+  - id: merge-final
+    kind: meta
+    action: merge-final
+    depends_on: [phase-converge]
+  - id: phase-gate
+    kind: meta
+    action: phase
+    arg: gate
+    depends_on: [merge-final]
+  - id: triage
+    kind: agentic
+    prompt: triage.md
+    check: triage-complete
+    repeat: {count: $triage_quorum, var: panelist, mode: parallel}
+    depends_on: [phase-gate, ref-judging]
+    description: Independent panelist — Gates 0-5 on every candidate. Panelists never see each other's verdicts.
+    outputs:
+      - {name: verdicts, path: "campaign/artifacts/triage-{panelist}.json", schema: triage@1, primary: true}
+  - id: reportability
+    kind: meta
+    action: reportability
+    depends_on: [triage]
+    description: Deterministic gate — scope, excluded classes, then the panel's votes through the quorum rules. Reportability before severity.
+
+  # ------------------------------------------------------------------ 7. prove: machine-run, negative-controlled
+  - id: phase-prove
+    kind: meta
+    action: phase
+    arg: prove
+    depends_on: [reportability]
+  - id: prove
+    kind: agentic
+    prompt: prove.md
+    check: proofs-valid
+    depends_on: [phase-prove, ref-judging]
+    description: The prover writes a PoC and a negative control for every cleared finding and lists how to run them.
+    outputs:
+      - {name: proofs, path: campaign/artifacts/proofs.json, schema: proofs@1, primary: true}
+  - id: prove-run
+    kind: meta
+    action: prove-run
+    depends_on: [prove]
+    description: The engine runs each proof N times with its control and files sealed receipts; only a pass can confirm.
+  - id: independence-audit
+    kind: agentic
+    prompt: independence-audit.md
+    depends_on: [prove-run]
+    description: Differential-reference audit — is each proof's oracle independent of the code it judges?
+    outputs:
+      - {name: audits, path: campaign/artifacts/independence-audit.json, schema: audit@1, primary: true}
+  - id: audit-gate
+    kind: meta
+    action: audit-gate
+    depends_on: [independence-audit]
+  - id: verify
+    kind: meta
+    action: verify
+    depends_on: [prove-run, audit-gate]
+    description: Re-read every citation, check every seal and hash.
+
+  # ------------------------------------------------------------------ 8. report and learn
+  - id: phase-report
+    kind: meta
+    action: phase
+    arg: report
+    depends_on: [verify]
+  - id: report
+    kind: meta
+    action: report
+    depends_on: [phase-report]
+    outputs:
+      - {name: report, path: report/report.md, primary: true}
+  - id: writeback
+    kind: meta
+    action: writeback
+    depends_on: [report]
+  - id: map
+    kind: meta
+    action: map
+    depends_on: [report]
+  - id: finish
+    kind: meta
+    action: finish
+    depends_on: [writeback, map]

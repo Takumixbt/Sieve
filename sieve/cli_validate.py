@@ -16,13 +16,8 @@ import argparse
 import json
 from typing import Any, Dict, List
 
-from . import util, validate
-from .cli_core import _waive
-from .config import load_config
+from . import judging, util, validate
 from .state import Engagement
-
-STAGE = {"cleared": "gates", "demoted": "gates", "rejected": "gates", "confirmed": "proof", "trace-only": "proof"}
-
 
 # ---------------------------------------------------------------------------- verify
 
@@ -147,119 +142,19 @@ def cmd_prove_record(args: argparse.Namespace) -> int:
 
 # ---------------------------------------------------------------------------- judge
 
-def _final(entry: Dict[str, Any]) -> Dict[str, Any]:
-    """Compute the standing verdict from the votes. Complex findings need two distinct verifiers per stage
-    (judging.md: Gates 1 and 6 get an independent second pass); disagreement demotes rather than averages."""
-    complex_ = entry.get("complexity") == "complex"
-    out: Dict[str, Any] = {}
-    for stage in ("gates", "proof"):
-        votes = [v for v in entry["votes"] if STAGE[v["verdict"]] == stage]
-        verdicts = {v["verdict"] for v in votes}
-        who = {v["verifier"] for v in votes}
-        if not votes:
-            out[stage] = None
-        elif verdicts & {"demoted", "rejected"}:
-            out[stage] = "rejected" if verdicts == {"rejected"} else "demoted"
-        elif len(verdicts) > 1:
-            out[stage] = "demoted"      # e.g. one verifier said confirmed, another trace-only
-        elif complex_ and len(who) < 2:
-            out[stage] = "pending-quorum"
-        else:
-            out[stage] = next(iter(verdicts))
-    g, p = out["gates"], out["proof"]
-    if g in ("demoted", "rejected"):
-        final = g
-    elif g == "pending-quorum":
-        final = "pending-quorum"
-    elif g == "cleared" and p in ("confirmed", "trace-only", "demoted", "rejected"):
-        final = p
-    elif g == "cleared" and p == "pending-quorum":
-        final = "cleared"
-    elif g == "cleared":
-        final = "cleared"
-    else:
-        final = None
-    return {"verdict": final, "gates": g, "proof": p}
-
-
 def cmd_judge(args: argparse.Namespace) -> int:
     eng = Engagement.require()
-    cfg = load_config(eng.root)
     fid = args.candidate
-    meta, _ = validate.finding_meta(eng, fid)
-    if meta.get("kind") != "FINDING":
-        raise SystemExit(f"sieve judge: {fid} is a {meta.get('kind')}, not a FINDING candidate. Leads are promoted only "
-                         f"when a later pass raises them again with proof (`sieve merge` re-keys by group_key).")
-    verifier = (args.verifier or "orchestrator").strip()
-    found_by = [str(x) for x in (meta.get("found_by") or [])]
-    if verifier in found_by or any(verifier == x.split("/")[-1] for x in found_by):
-        raise SystemExit(f"sieve judge: {verifier} discovered {fid} — discoverer != verifier (judging.md). "
-                         f"Dispatch a fresh verifier with no memory of finding it.")
-    verdict = args.verdict
-    complexity = args.complexity or meta.get("complexity") or "straightforward"
-    prior = validate.load_judged(eng).get(fid) or {"votes": []}
-    stage = STAGE[verdict]
-    if stage == "proof":
-        gates = _final({"votes": prior.get("votes", []), "complexity": complexity})["gates"]
-        if gates != "cleared":
-            raise SystemExit(f"sieve judge: {fid} has not cleared Gates 0–5 (standing gates verdict: {gates or 'none'}). "
-                             f"Run the gates first: `sieve judge {fid} --verdict cleared ...` by a verifier.")
-    if verdict in ("confirmed", "trace-only"):
-        rec = _ensure_cites(eng, fid, force=True)
-        if not rec["ok"]:
-            raise SystemExit(f"sieve judge: refused — citations do not check out for {fid}:\n  - "
-                             + "\n  - ".join(rec.get("failures") or ["no citations verified"]))
-        if args.confidence is None:
-            raise SystemExit("sieve judge: --confidence N is required (judging.md's arithmetic: start at 100, deduct per rule)")
-        thr = int(cfg.get("audit.confidence_threshold", 75))
-        if args.confidence < thr:
-            raise SystemExit(f"sieve judge: confidence {args.confidence} is below the {thr} threshold — a finding that "
-                             f"cannot clear it is a lead: `--verdict demoted`.")
-        sev = str(args.severity or meta.get("severity") or "").lower()
-        est, ewhy, _best = validate._exec_state(validate.receipts(eng, fid))
-        if verdict == "confirmed" and sev in validate.CONTROLLED_SEVERITIES and est != "pass":
-            raise SystemExit(
-                f"sieve judge: refused — {fid} ({sev}) has no machine-accepted proof (exec state: {est}"
-                + (f", {ewhy}" if ewhy else "") + ").\n"
-                f"  • run the PoC:  sieve prove run {fid} --oracle fork-test --cmd \"forge test --match-test testExploit\" "
-                f"--expect \"\\[PASS\\]\" --control-cmd \"forge test --match-test testNoExploit\"\n"
-                f"  • or capture:   sieve prove add {fid} --oracle two-identity-diff --evidence hit.txt --expect ... --control miss.txt "
-                f"(then `--verdict trace-only`)\n"
-                f"  • or, with no way to execute it: `--verdict trace-only --reason \"why it cannot be run\"` — ships as "
-                f"trace-verified, never confirmed.")
-        if verdict == "trace-only":
-            if len((args.reason or "").strip()) < 20:
-                raise SystemExit("sieve judge: --verdict trace-only needs --reason (>= 20 chars): why can it not be executed?")
-            _waive(eng, "prove", f"{fid}: trace-only, no executable proof — {args.reason.strip()}")
-    elif args.confidence is not None and not (0 <= args.confidence <= 100):
-        raise SystemExit("sieve judge: --confidence is 0-100")
-
-    votes = [v for v in prior.get("votes", []) if not (v["verifier"] == verifier and STAGE[v["verdict"]] == stage)]
-    votes.append({"verifier": verifier, "verdict": verdict, "reason": args.reason, "gate_failed": args.gate_failed,
-                  "confidence": args.confidence, "severity": args.severity, "time": util.now_iso()})
-    entry: Dict[str, Any] = {"votes": votes, "complexity": complexity, "verifiers": sorted({v["verifier"] for v in votes}),
-                             "reason": args.reason,
-                             "confidence": next((v["confidence"] for v in reversed(votes) if v.get("confidence") is not None), None),
-                             "severity": next((v["severity"] for v in reversed(votes) if v.get("severity")), None) or meta.get("severity"),
-                             "trace_reason": next((v["reason"] for v in reversed(votes) if v["verdict"] == "trace-only"), None)}
-    entry.update(_final(entry))
-    entry["time"] = util.now_iso()
-    validate.save_judgment(eng, fid, entry)
+    entry = judging.record_vote(eng, fid, args.verdict, (args.verifier or "orchestrator").strip(), args.reason,
+                                confidence=args.confidence, severity=args.severity, complexity=args.complexity,
+                                gate_failed=args.gate_failed)
     final = entry["verdict"]
-    upd: Dict[str, Any] = {"complexity": complexity, "verified_by": entry["verifiers"], "judged_at": entry["time"],
-                           "confidence": entry["confidence"], "severity": entry["severity"]}
-    upd["status"] = {"confirmed": "confirmed", "trace-only": "trace-verified", "cleared": "cleared", "demoted": "demoted",
-                     "rejected": "rejected", "pending-quorum": "candidate"}.get(str(final), "candidate")
-    if final == "demoted":
-        upd["kind"] = "LEAD"
-    validate.write_finding_meta(eng, fid, upd)
     tier = validate.assess(eng, fid)["tier"]
-    validate.write_finding_meta(eng, fid, {"validation": tier})
-    print(f"{fid}: {verdict} recorded by {verifier} → standing verdict: {final} · tier: {tier}"
+    print(f"{fid}: {args.verdict} recorded by {args.verifier or 'orchestrator'} → standing verdict: {final} · tier: {tier}"
           + (f" (failed at gate {args.gate_failed})" if args.gate_failed else ""))
     if final == "pending-quorum":
-        print(f"complex finding: a second, independent verifier must file the same stage (`--verifier <another>`); "
-              f"a disagreement demotes it.")
+        print("complex finding: a second, independent verifier must file the same stage (`--verifier <another>`); "
+              "a disagreement demotes it.")
     if final == "cleared":
         print(f"NEXT: prove it — `sieve prove run {fid} …` — then `sieve judge {fid} --verdict confirmed …`.")
     return 0

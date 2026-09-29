@@ -257,7 +257,7 @@ def progress_hash(eng: Engagement) -> str:
     """Changes whenever real work happened. Used by the Stop hook to tell stalling from working."""
     rows = load(eng)
     parts = [f"{r['id']}:{r['status']}:{r['attempts']}" for r in rows]
-    for sub in ("raw", "findings", "proofs"):
+    for sub in ("raw", "findings", "proofs", "campaign"):
         d = eng.path(sub)
         n = 0
         size = 0

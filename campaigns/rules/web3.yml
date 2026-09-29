@@ -1,0 +1,179 @@
+# Static anti-pattern rules for web3 targets. One regex per line; a hit is a LEAD (a frontier row), never a finding.
+# Fields: id, title, pack, ext, pattern, flags (i = ignore case), why, prio (1-5, 5 = read first), vector (optional).
+- id: RULE-W3-001
+  title: 'tx.origin used in an authorization or transfer path'
+  pack: web3
+  ext: [sol]
+  pattern: 'tx\.origin'
+  why: 'tx.origin is the outer EOA, so any contract the victim interacts with can act as them (phishing relay); it is never an access check'
+  prio: 4
+- id: RULE-W3-002
+  title: 'delegatecall'
+  pack: web3
+  ext: [sol]
+  pattern: '\.delegatecall\s*\('
+  why: 'runs foreign code against this contract''s storage; the target and calldata must not be caller-influenced, and storage layouts must match'
+  prio: 4
+- id: RULE-W3-003
+  title: 'selfdestruct'
+  pack: web3
+  ext: [sol]
+  pattern: '\bselfdestruct\s*\(|\bsuicide\s*\('
+  why: 'destroys code and forwards balance; an unguarded or delegatecall-reachable path bricks a proxy or drains funds'
+  prio: 4
+- id: RULE-W3-004
+  title: 'low-level call whose result is not checked'
+  pack: web3
+  ext: [sol]
+  pattern: '^\s*(?!.*\b(bool|require|if|assert|return)\b)(?!.*=).*\.call\s*[\{\(]'
+  why: 'a failed call is silently ignored, so state moves on as if the transfer happened'
+  prio: 4
+- id: RULE-W3-005
+  title: 'ETH sent with call{value:...} (reentrancy surface)'
+  pack: web3
+  ext: [sol]
+  pattern: '\.call\s*\{\s*value\s*:'
+  why: 'hands control to the recipient; every state write after this line is reachable in a re-entered call (check CEI, nonReentrant, cross-function state)'
+  prio: 4
+- id: RULE-W3-006
+  title: 'transfer/send to an address payable (2300-gas stipend)'
+  pack: web3
+  ext: [sol]
+  pattern: '\bpayable\s*\([^)]*\)\s*\.(transfer|send)\s*\(|\.send\s*\('
+  why: 'breaks for contract recipients whose receive needs more gas (multisigs, proxies) and can lock funds; also not a reentrancy defence after Istanbul'
+  prio: 3
+- id: RULE-W3-007
+  title: 'ecrecover'
+  pack: web3
+  ext: [sol]
+  pattern: '\becrecover\s*\('
+  why: 'returns address(0) on a bad signature, accepts malleable (s, v) pairs, and does not bind chain, contract, nonce or deadline unless the digest does'
+  prio: 4
+- id: RULE-W3-008
+  title: 'abi.encodePacked with several arguments'
+  pack: web3
+  ext: [sol]
+  pattern: 'abi\.encodePacked\s*\([^)]*,[^)]*\)'
+  why: 'adjacent dynamic types collide (a,bc vs ab,c); hashed for a signature or a key it allows forged inputs'
+  prio: 3
+- id: RULE-W3-009
+  title: 'spot price read (getReserves / slot0)'
+  pack: web3
+  ext: [sol]
+  pattern: '\bgetReserves\s*\(|\.slot0\s*\('
+  why: 'a single-block DEX price is movable with a flash loan inside one transaction; if a valuation or collateral check reads it, it is an oracle manipulation'
+  prio: 5
+  vector: W3-ORC-01
+- id: RULE-W3-010
+  title: 'latestRoundData without visible staleness handling'
+  pack: web3
+  ext: [sol]
+  pattern: '\blatestRoundData\s*\('
+  why: 'confirm updatedAt, answeredInRound, a positive answer and the L2 sequencer-uptime feed are all checked, or a stale/zero price flows through'
+  prio: 4
+  vector: W3-ORC-02
+- id: RULE-W3-011
+  title: 'initialize() with no initializer guard on the line'
+  pack: web3
+  ext: [sol]
+  pattern: 'function\s+initialize\w*\s*\([^)]*\)\s*(external|public)(?![^{;]*\b(initializer|onlyInitializing|reinitializer)\b)'
+  why: 'an unguarded or re-callable initializer lets anyone take ownership of a proxy or implementation'
+  prio: 5
+- id: RULE-W3-012
+  title: 'unchecked block'
+  pack: web3
+  ext: [sol]
+  pattern: '\bunchecked\s*\{'
+  why: 'arithmetic inside wraps silently; prove the bound the author relied on actually holds on every path'
+  prio: 3
+- id: RULE-W3-013
+  title: 'unsafe narrowing cast'
+  pack: web3
+  ext: [sol]
+  pattern: '\b(uint(8|16|32|64|96|112|128|160|192)|int(8|16|32|64|96|128))\s*\('
+  why: 'a downcast truncates without reverting (pre-0.8 and explicit casts); check the operand is bounded before the cast'
+  prio: 3
+- id: RULE-W3-014
+  title: 'inline assembly'
+  pack: web3
+  ext: [sol]
+  pattern: '\bassembly\s*(\(\s*"memory-safe"\s*\))?\s*\{'
+  why: 'bypasses compiler checks: dirty higher-order bits, returndata handling, storage-slot arithmetic and memory clobbering live here'
+  prio: 3
+- id: RULE-W3-015
+  title: 'loop bounded by a dynamic array length'
+  pack: web3
+  ext: [sol]
+  pattern: 'for\s*\([^;]*;[^;]*\.length\s*;'
+  why: 'if anyone can grow the array the loop can be pushed past the block gas limit, freezing whatever depends on finishing it'
+  prio: 3
+- id: RULE-W3-016
+  title: 'ERC-20 approve()'
+  pack: web3
+  ext: [sol]
+  pattern: '\.approve\s*\('
+  why: 'tokens like USDT revert on non-zero to non-zero approvals and return no bool; use a safe-approve pattern and check the allowance flow'
+  prio: 3
+- id: RULE-W3-017
+  title: 'flash-loan or swap callback entry point'
+  pack: web3
+  ext: [sol]
+  pattern: '\b(onFlashLoan|executeOperation|receiveFlashLoan|uniswapV[23]\w*Callback|pancakeCall|algebra\w*Callback|unlockCallback)\b'
+  why: 'a callback that does not verify msg.sender and the initiator can be invoked directly to spend the contract''s approvals or balances'
+  prio: 4
+- id: RULE-W3-018
+  title: 'permit()'
+  pack: web3
+  ext: [sol]
+  pattern: '\.permit\s*\('
+  why: 'a front-runner can consume the signature first and revert the call; wrap in try/catch and re-check the allowance'
+  prio: 3
+- id: RULE-W3-019
+  title: 'ERC-721/1155 safe transfer or mint (receiver hook)'
+  pack: web3
+  ext: [sol]
+  pattern: '\b(_safeMint|safeTransferFrom|onERC721Received|onERC1155Received|onERC1155BatchReceived)\b'
+  why: 'calls into the recipient before the caller finishes: a reentrancy vector that scanners rarely tag'
+  prio: 3
+- id: RULE-W3-020
+  title: 'msg.value read'
+  pack: web3
+  ext: [sol]
+  pattern: '\bmsg\.value\b'
+  why: 'inside a loop or a delegatecall-based multicall the same msg.value is counted repeatedly; also check dust and refund paths'
+  prio: 3
+- id: RULE-W3-021
+  title: 'block property used in logic'
+  pack: web3
+  ext: [sol]
+  pattern: '\bblock\.(timestamp|number|prevrandao|difficulty|coinbase)\b|\bblockhash\s*\('
+  why: 'proposers influence these; as randomness or a tight deadline they are manipulable, and block.number differs across L2s'
+  prio: 2
+- id: RULE-W3-022
+  title: 'Solana: cross-program invocation'
+  pack: web3
+  ext: [rs]
+  pattern: '\binvoke(_signed)?\s*\('
+  why: 'check the invoked program id is pinned, signer seeds are right, and accounts passed on are the ones validated'
+  prio: 4
+- id: RULE-W3-023
+  title: 'Rust: unsafe block, truncating cast, or unwrap on input-derived data'
+  pack: web3
+  ext: [rs]
+  pattern: '\bunsafe\s*\{|\bas\s+u(8|16|32)\b|\.unwrap\(\)'
+  why: 'panics halt a chain or program (a DoS on validators or a bricked account), and truncating casts break amount math'
+  prio: 3
+- id: RULE-W3-024
+  title: 'Move: global storage borrow or public entry function'
+  pack: web3
+  ext: [move]
+  pattern: '\bborrow_global_mut\b|\bpublic\s+entry\s+fun\b'
+  why: 'entry functions are the permissionless surface; mutable global borrows are where capability and ownership checks get skipped'
+  prio: 3
+- id: RULE-W3-025
+  title: 'Cosmos SDK: message handler or BeginBlock/EndBlock'
+  pack: web3
+  ext: [go]
+  pattern: '\bfunc\s*\([^)]*\)\s*(BeginBlock|EndBlock)\w*\(|\bfunc\s*\(k\s+msgServer\)'
+  why: 'a panic or unbounded loop in a block hook halts the chain; message handlers must validate every amount, denom and signer'
+  prio: 4

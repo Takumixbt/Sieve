@@ -238,12 +238,20 @@ def cmd_writeback(args: argparse.Namespace) -> int:
     minc = int(wb.get("min_confidence", 75))
     eid = eng.load()["id"]
     written = skipped = 0
+    from . import validate
     for f in sorted(glob.glob(eng.path("findings", "F-*.md"))):
         meta, body = yamlish.split_frontmatter(util.read_text(f))
         fid = meta.get("id", os.path.basename(f)[:-3])
-        if meta.get("kind", "FINDING") != "FINDING" or meta.get("status") not in ("confirmed", "trace-verified"):
+        # The tier is computed from sealed receipts — a `status:` line an agent edited into the file is not trusted.
+        tier = validate.assess(eng, fid)
+        if tier["tier"] == "rejected":
+            _false_positive_lesson(eng, cfg, ix, vault, meta, body, tier)
             skipped += 1
             continue
+        if meta.get("kind", "FINDING") != "FINDING" or tier["tier"] not in ("confirmed", "trace-verified"):
+            skipped += 1
+            continue
+        meta["confidence"] = tier.get("confidence") if tier.get("confidence") is not None else meta.get("confidence")
         if int(meta.get("confidence") or 0) < minc:
             skipped += 1
             print(f"skip {fid}: confidence {meta.get('confidence')} < {minc}")
@@ -254,7 +262,8 @@ def cmd_writeback(args: argparse.Namespace) -> int:
             "title": meta.get("title", fid), "source": "own", "source_ref": f"{eid}:{fid}", "domain": domain,
             "class": meta.get("class", "unclassified"), "vector": meta.get("vector", ""),
             "severity": meta.get("severity", ""), "stack": meta.get("stack", ""), "tell": meta.get("tell", ""),
-            "status": "confirmed", "confidence": meta.get("confidence"), "used_in": [f"{eid}:{fid}"],
+            "status": "confirmed" if tier["tier"] == "confirmed" else "curated",
+            "confidence": meta.get("confidence"), "used_in": [f"{eid}:{fid}"],
             "tags": [meta.get("class", ""), domain], "last_used": util.today(),
         }
         parts = [f"# {meta.get('title', fid)}", ""]
@@ -297,6 +306,26 @@ def cmd_lesson(args: argparse.Namespace) -> int:
     ix.upsert(m, b, path)
     print(f"{action} lesson card: {path}")
     return 0
+
+
+def _false_positive_lesson(eng: Engagement, cfg: Config, ix: kb_store.Index, vault: str, meta: Dict[str, Any],
+                           body: str, tier: Dict[str, Any]) -> None:
+    """A candidate the verifiers killed is the cheapest lesson there is: what looked like a bug, and the guard or
+    missing harm that showed it was not. Written so `kb prime` shows it before the next hunt in the same class."""
+    wb = cfg.get("kb.writeback", {}) or {}
+    if not wb.get("lessons", True):
+        return
+    from . import validate
+    j = validate.load_judged(eng).get(meta.get("id", "")) or {}
+    why = "\n".join(f"- {v['verifier']}: {v.get('reason')}" for v in j.get("votes", []))
+    domain = meta.get("pack") or eng.load()["packs"][0]
+    text = (f"Candidate `{meta.get('component')}` ({meta.get('class')}) was raised as a finding and rejected at the gates.\n\n"
+            f"**Why it looked real:** {meta.get('title')}\n\n**Why it was not:**\n{why or '(no reason recorded)'}\n")
+    m, t = _lesson_card("false-positive", f"False positive: {meta.get('class')} in {meta.get('component')}", domain, text,
+                        f"{eng.load()['id']}:{meta.get('id')}", eng)
+    path, _ = kb_store.write_card(vault, m, t, sanitize_on=bool(wb.get("sanitize", True)))
+    mm, bb = kb_store.read_card(path)
+    ix.upsert(mm, bb, path)
 
 
 def _dead_end_lessons(eng: Engagement, cfg: Config, ix: kb_store.Index, vault: str) -> int:

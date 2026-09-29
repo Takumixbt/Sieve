@@ -1,0 +1,129 @@
+# Static anti-pattern rules for web targets with source available (or a decompiled/bundled copy).
+# A hit is a LEAD (a frontier row), never a finding. Fields as in web3.yml.
+- id: RULE-WEB-001
+  title: 'dynamic code or command execution sink'
+  pack: web
+  ext: [js, mjs, ts, tsx, jsx, py, rb, php, java]
+  pattern: '\beval\s*\(|new\s+Function\s*\(|\bexec\s*\(|child_process|\bos\.system\s*\(|subprocess\.(call|run|Popen|check_output)\s*\(|Runtime\.getRuntime\(\)\.exec|\bshell_exec\s*\(|\bpassthru\s*\('
+  why: 'trace whether any argument is attacker-influenced; a reachable sink is remote code execution'
+  prio: 5
+- id: RULE-WEB-002
+  title: 'SQL assembled by concatenation or interpolation'
+  pack: web
+  ext: [js, mjs, ts, py, rb, php, java, go, cs]
+  pattern: '\b(SELECT|INSERT\s+INTO|UPDATE|DELETE\s+FROM)\b[^;\n]*(["''`]\s*\+|\$\{|%s|\.format\(|f["''])'
+  flags: i
+  why: 'string-built SQL is injectable unless every interpolated value is provably constant or an allow-listed identifier'
+  prio: 5
+- id: RULE-WEB-003
+  title: 'HTML injection sink'
+  pack: web
+  ext: [js, mjs, ts, tsx, jsx, vue, html]
+  pattern: '\.innerHTML\s*=|\.outerHTML\s*=|dangerouslySetInnerHTML|document\.write(ln)?\s*\(|\bv-html\b|insertAdjacentHTML'
+  why: 'reachable with attacker-controlled data it is DOM XSS; check sanitization and the CSP that would blunt it'
+  prio: 4
+- id: RULE-WEB-004
+  title: 'outbound request built from a variable (SSRF candidate)'
+  pack: web
+  ext: [js, mjs, ts, py, rb, php, java, go]
+  pattern: '\b(requests\.(get|post|put|head)|axios\.(get|post)|fetch|urlopen|http\.Get|HttpClient\.\w+|file_get_contents)\s*\(\s*[A-Za-z_$][\w.$\[\]]*\s*[,)]'
+  why: 'if the URL, host or redirect target is attacker-influenced the server becomes a proxy into internal services and metadata endpoints'
+  prio: 3
+- id: RULE-WEB-005
+  title: 'unsafe deserialization'
+  pack: web
+  ext: [py, rb, php, java, js, ts, cs]
+  pattern: '\bpickle\.loads?\s*\(|\byaml\.load\s*\((?![^)]*Loader)|ObjectInputStream|\bunserialize\s*\(|Marshal\.load|\breadObject\s*\(|BinaryFormatter|node-serialize'
+  why: 'deserializing attacker bytes is code execution on most stacks; confirm the input source and any allow-listing'
+  prio: 5
+- id: RULE-WEB-006
+  title: 'token verification disabled or weakened'
+  pack: web
+  ext: [js, mjs, ts, py, rb, php, java, go]
+  pattern: 'verify\s*[:=]\s*(False|false)|algorithms?\s*[:=]\s*\[?\s*["'']none|ignoreExpiration\s*:\s*true|\.decode\([^)]*verify_signature["'']?\s*:\s*False'
+  flags: i
+  why: 'unsigned or expiry-ignored tokens are an authentication bypass'
+  prio: 5
+- id: RULE-WEB-007
+  title: 'permissive CORS'
+  pack: web
+  ext: [js, mjs, ts, py, rb, php, java, go, conf]
+  pattern: 'Access-Control-Allow-Origin["'']?\s*[:,=]\s*["'']?\*|origin\s*:\s*true|allow_origins\s*=\s*\[\s*["'']\*|Access-Control-Allow-Credentials["'']?\s*[:,=]\s*["'']?true'
+  flags: i
+  why: 'a reflected or wildcard origin combined with credentials lets any site read authenticated responses'
+  prio: 3
+- id: RULE-WEB-008
+  title: 'hard-coded credential-like literal'
+  pack: web
+  ext: [js, mjs, ts, tsx, py, rb, php, java, go, cs, yml, yaml, json, env]
+  pattern: '\b(api[_-]?key|secret|passwd|password|token|private[_-]?key)\b["'']?\s*[:=]\s*["''][A-Za-z0-9/+_\-]{16,}["'']'
+  flags: i
+  why: 'record the location as evidence; never test or use a found credential — that is out of bounds without explicit written permission'
+  prio: 4
+- id: RULE-WEB-009
+  title: 'weak hash or cipher mode'
+  pack: web
+  ext: [js, mjs, ts, py, rb, php, java, go, cs]
+  pattern: '\b(md5|sha1)\s*\(|createHash\(\s*["''](md5|sha1)|MessageDigest\.getInstance\(\s*["''](MD5|SHA-?1)|\bECB\b|\bDES\b'
+  flags: i
+  why: 'if it protects a password, token, signature or integrity check it is a real weakness; if it is a cache key it is noise'
+  prio: 3
+- id: RULE-WEB-010
+  title: 'file path built from request data'
+  pack: web
+  ext: [js, mjs, ts, py, rb, php, java, go]
+  pattern: '\b(sendFile|readFile(Sync)?|createReadStream|send_file|send_from_directory|File\.read|file_get_contents|open)\s*\([^)]*(req|request|params|query|input|body)'
+  why: 'path traversal and arbitrary file read when the path is not canonicalized against a fixed root'
+  prio: 4
+- id: RULE-WEB-011
+  title: 'mass assignment'
+  pack: web
+  ext: [js, mjs, ts, py, rb, php, java]
+  pattern: 'Object\.assign\s*\([^,]+,\s*req\.body|\.\.\.\s*req\.body|update_attributes\s*\(\s*params|\.permit!|\$request->all\s*\(\)|@RequestBody[^)]*Map'
+  why: 'a client that can set role, owner, price or tenant fields turns an update into privilege escalation'
+  prio: 4
+- id: RULE-WEB-012
+  title: 'redirect target from request data'
+  pack: web
+  ext: [js, mjs, ts, py, rb, php, java, go]
+  pattern: '\bredirect\s*\([^)]*(req|request|params|query|next|return_?url|redirect_?uri)'
+  flags: i
+  why: 'open redirect, and in OAuth flows an authorization-code or token leak'
+  prio: 3
+- id: RULE-WEB-013
+  title: 'TLS verification turned off'
+  pack: web
+  ext: [js, mjs, ts, py, rb, php, java, go, cs]
+  pattern: 'rejectUnauthorized\s*:\s*false|verify\s*=\s*False|InsecureSkipVerify\s*:\s*true|CURLOPT_SSL_VERIFYPEER\s*,\s*(false|0)|TrustAllCerts'
+  why: 'server-to-server calls become interceptable; often an SSRF or secret-exfiltration amplifier'
+  prio: 4
+- id: RULE-WEB-014
+  title: 'postMessage listener'
+  pack: web
+  ext: [js, mjs, ts, tsx, jsx, html]
+  pattern: 'addEventListener\s*\(\s*["'']message["'']|onmessage\s*='
+  why: 'check event.origin is compared to an exact allowed origin before the data is used; a missing check is cross-origin injection'
+  prio: 4
+- id: RULE-WEB-015
+  title: 'prototype-pollution shaped merge or key access'
+  pack: web
+  ext: [js, mjs, ts, tsx, jsx]
+  pattern: '__proto__|\bconstructor\s*\.\s*prototype|\b(merge|deepMerge|defaultsDeep|extend|set)\s*\([^)]*(req|body|query|params)'
+  why: 'user-controlled keys reaching a recursive merge can poison Object.prototype and flip authorization or template behaviour'
+  prio: 3
+- id: RULE-WEB-016
+  title: 'non-constant-time secret comparison'
+  pack: web
+  ext: [js, mjs, ts, py, rb, php, java, go]
+  pattern: '(signature|hmac|digest|token|secret)\w*\s*(===?|!==?)\s*\w|(===?|!==?)\s*\w*(signature|hmac|digest)\b'
+  flags: i
+  why: 'a timing side channel on a webhook signature or token check; use a constant-time compare'
+  prio: 2
+- id: RULE-WEB-017
+  title: 'GraphQL introspection or debug mode left on'
+  pack: web
+  ext: [js, mjs, ts, py, rb, java, go, yml, yaml, json, env]
+  pattern: 'introspection\s*:\s*true|\bDEBUG\s*=\s*(True|1|true)|app\.debug\s*=\s*(True|true)|playground\s*:\s*true'
+  flags: i
+  why: 'recon gift at best, stack traces and an interactive console at worst; confirm whether it is reachable in production config'
+  prio: 2

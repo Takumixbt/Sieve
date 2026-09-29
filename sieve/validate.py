@@ -652,6 +652,7 @@ def assess(eng: Engagement, fid: str) -> Dict[str, Any]:
     sev = str((judged or {}).get("severity") or meta.get("severity") or "").lower()
     out["severity"] = sev or out["severity"]
     verdict = (judged or {}).get("verdict")
+    not_independent = (util.read_json(eng.path("findings", "independence-failures.json"), {}) or {}).get(fid)
     if tamper:
         tier = "tampered"
     elif verdict == "rejected":
@@ -667,6 +668,9 @@ def assess(eng: Engagement, fid: str) -> Dict[str, Any]:
         if isinstance(conf, int) and conf < threshold:
             tier = "unvalidated"
             why.append(f"confidence {conf} is below the {threshold} threshold")
+        elif est == "pass" and verdict == "confirmed" and not_independent:
+            tier = "trace-verified"
+            why.append("the proof's oracle is not independent of the code it judges: " + str(not_independent)[:160])
         elif est == "pass" and verdict == "confirmed":
             tier = "confirmed"
         elif verdict == "confirmed" and sev not in CONTROLLED_SEVERITIES:

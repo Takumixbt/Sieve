@@ -1,0 +1,108 @@
+# Static anti-pattern rules for binary / mobile targets (decompiled sources, manifests, plists, native code).
+# A hit is a LEAD (a frontier row), never a finding. Fields as in web3.yml.
+- id: RULE-BIN-001
+  title: 'Android component exported'
+  pack: binary
+  ext: [xml]
+  pattern: 'android:exported\s*=\s*"true"'
+  why: 'every exported activity, service, receiver or provider is an entry point for any app on the device; check its permission and what it does with the intent extras'
+  prio: 4
+- id: RULE-BIN-002
+  title: 'Android app debuggable or backup-enabled'
+  pack: binary
+  ext: [xml]
+  pattern: 'android:debuggable\s*=\s*"true"|android:allowBackup\s*=\s*"true"'
+  why: 'debuggable lets any local attacker attach; allowBackup lets adb pull app data without root'
+  prio: 3
+- id: RULE-BIN-003
+  title: 'cleartext traffic permitted'
+  pack: binary
+  ext: [xml, plist]
+  pattern: 'usesCleartextTraffic\s*=\s*"true"|cleartextTrafficPermitted\s*=\s*"true"|NSAllowsArbitraryLoads'
+  why: 'the app talks HTTP or trusts user-added CAs: check which endpoints carry credentials or tokens'
+  prio: 3
+- id: RULE-BIN-004
+  title: 'deep link or custom URL scheme handler'
+  pack: binary
+  ext: [xml, plist]
+  pattern: 'android:scheme\s*=|CFBundleURLSchemes'
+  why: 'deep links are an attacker-triggerable input: check parameter validation, auth state assumptions, and WebView loads from link data'
+  prio: 4
+- id: RULE-BIN-005
+  title: 'WebView with a JavaScript bridge or file access'
+  pack: binary
+  ext: [java, kt, smali]
+  pattern: 'setJavaScriptEnabled\s*\(\s*true|addJavascriptInterface\s*\(|setAllowFileAccess\s*\(\s*true|setAllowUniversalAccessFromFileURLs\s*\(\s*true|setAllowFileAccessFromFileURLs\s*\(\s*true'
+  why: 'a bridge object reachable from loaded content is remote code execution or data theft when any loaded URL is attacker-influenced'
+  prio: 5
+- id: RULE-BIN-006
+  title: 'world-readable storage or shared preferences'
+  pack: binary
+  ext: [java, kt, smali]
+  pattern: 'MODE_WORLD_READABLE|MODE_WORLD_WRITEABLE|getExternalStorage(Directory|PublicDirectory)|getSharedPreferences\s*\('
+  why: 'secrets or tokens in shared preferences or on external storage are readable by other apps or a device backup'
+  prio: 3
+- id: RULE-BIN-007
+  title: 'certificate or hostname validation disabled'
+  pack: binary
+  ext: [java, kt, smali, swift, m]
+  pattern: 'X509TrustManager|checkServerTrusted\s*\(|ALLOW_ALL_HOSTNAME_VERIFIER|setHostnameVerifier|AllowAllHostnameVerifier|allowsInvalidSSLCertificate|continueWithoutCredentialForAuthenticationChallenge'
+  why: 'a trust-all manager or hostname verifier makes every TLS call interceptable; find the call sites and what they carry'
+  prio: 4
+- id: RULE-BIN-008
+  title: 'weak crypto primitive or predictable randomness'
+  pack: binary
+  ext: [java, kt, smali, swift, m]
+  pattern: 'Cipher\.getInstance\s*\(\s*"(AES|DES|DESede)(/ECB[^"]*)?"\s*\)|MessageDigest\.getInstance\s*\(\s*"(MD5|SHA-?1)"|new\s+Random\s*\(|\.setSeed\s*\(|kCCAlgorithmDES|CC_MD5|CC_SHA1\b'
+  why: 'ECB, MD5/SHA-1 for security, and non-secure Random for tokens or keys are exploitable when they guard something valuable'
+  prio: 3
+- id: RULE-BIN-009
+  title: 'process execution'
+  pack: binary
+  ext: [java, kt, smali, c, cc, cpp, m, mm]
+  pattern: 'Runtime\.getRuntime\(\)\.exec|ProcessBuilder\s*\(|\bsystem\s*\(|\bpopen\s*\(|\bexecv?[lp]?e?\s*\('
+  why: 'a command built from input is command injection; from a privileged process it is a privilege-escalation primitive'
+  prio: 4
+- id: RULE-BIN-010
+  title: 'unbounded C string or memory copy'
+  pack: binary
+  ext: [c, cc, cpp, cxx, h, hpp, m, mm]
+  pattern: '\b(strcpy|strcat|sprintf|vsprintf|gets|wcscpy|stpcpy)\s*\('
+  why: 'no length bound: a stack or heap overflow whenever the source length is attacker-influenced'
+  prio: 5
+- id: RULE-BIN-011
+  title: 'memcpy or read with a computed length'
+  pack: binary
+  ext: [c, cc, cpp, cxx, h, hpp, m, mm]
+  pattern: '\b(memcpy|memmove|read|recv|fread|strncpy)\s*\([^;]*\b(len|length|size|count|n)\b[^;]*\)'
+  why: 'trace where the length comes from: an integer overflow or unchecked parse feeds an out-of-bounds copy'
+  prio: 4
+- id: RULE-BIN-012
+  title: 'format string from a variable'
+  pack: binary
+  ext: [c, cc, cpp, cxx, h, hpp, m, mm]
+  pattern: '\b(printf|fprintf|syslog|snprintf|NSLog)\s*\(\s*([A-Za-z_]\w*\s*,\s*)?[A-Za-z_]\w*\s*\)'
+  why: 'a non-literal format string is a read/write primitive when any part of it is attacker-influenced'
+  prio: 5
+- id: RULE-BIN-013
+  title: 'iOS keychain item readable while locked or always'
+  pack: binary
+  ext: [swift, m, mm]
+  pattern: 'kSecAttrAccessibleAlways|kSecAttrAccessibleAfterFirstUnlock\b'
+  why: 'weaker accessibility classes leave secrets readable from a locked or backed-up device'
+  prio: 3
+- id: RULE-BIN-014
+  title: 'hard-coded credential-like literal'
+  pack: binary
+  ext: [java, kt, smali, swift, m, mm, xml, plist, json]
+  pattern: '\b(api[_-]?key|secret|passwd|password|token|private[_-]?key|client[_-]?secret)\b["'']?\s*[:=]\s*["''][A-Za-z0-9/+_\-]{16,}["'']'
+  flags: i
+  why: 'record the location as evidence; never test or use a found credential — that is out of bounds without explicit written permission'
+  prio: 4
+- id: RULE-BIN-015
+  title: 'native library load or JNI entry'
+  pack: binary
+  ext: [java, kt, smali]
+  pattern: 'System\.load(Library)?\s*\(|\bnative\s+\w+\s+\w+\s*\('
+  why: 'the managed-to-native boundary is where memory-safety bugs become reachable from an intent, a file, or a network message'
+  prio: 3

@@ -15,6 +15,7 @@ MODULES = [
     "sieve.cli_xray",
     "sieve.cli_pass",
     "sieve.cli_validate",
+    "sieve.cli_campaign",
     "sieve.cli_report",
     "sieve.cli_setup",
 ]
