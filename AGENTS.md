@@ -17,7 +17,7 @@ it degrades when something is missing. Read this once per new environment, not p
 None of them are required to *start* an engagement — `sieve doctor` reports what's present, and
 every missing tool is recorded as coverage-debt in the report, never a silent skip
 (`references/shared-rules.md`, `judging.md`). See `references/local-tooling.md` for the full roster
-and `setup.md` for install commands. Depth scales with what's installed: a web engagement with no
+and `setup.md` for install commands (`sieve install <pack>` runs them from the same table `sieve doctor` checks). Depth scales with what's installed: a web engagement with no
 Burp available still runs (passive recon, source-level review) but can't confirm anything requiring
 live traffic; a web3 engagement with no Foundry still runs the reasoning-based hunt but can't
 produce a fork-test proof for Gate 6.

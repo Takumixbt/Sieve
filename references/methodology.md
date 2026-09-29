@@ -2,7 +2,8 @@
 
 A vector card catalog catches the bugs that already have a name. The bugs that pay the most are
 the ones nobody named yet — they come from *how* you reason about a system, not from a longer
-checklist. This file is that reasoning: what "done" actually requires, the mental tools, how to
+checklist. This file is that reasoning (the craft of turning it into sharp hypotheses and
+invariants lives in `hypothesis-craft.md` — read the two together): what "done" actually requires, the mental tools, how to
 read code so nothing is skimmed, the creativity toolbox, the deepen and chaining loops, how to use
 tool output without outsourcing judgment to it, Focus mode, and the transferable mindset lessons
 real 2026 incidents actually teach. Methodology attribution: `CREDITS.md`.
@@ -33,6 +34,13 @@ For every component in scope, before it can be marked clean (`sieve frontier don
   to the component's size (`sieve.yaml`'s `audit.markers`); the orchestrator counts them after the
   pass. A component with zero Socratic markers was skimmed, not read — no exceptions for code that
   "looked simple."
+- **The component was looked at through the asymmetry list and the invariant lenses**
+  (`hypothesis-craft.md` §2–§3) — at least the imbalances found, and an explicit "nothing here" for
+  the lenses that came up empty. Two or three lines per component is normal; none means the lens
+  wasn't applied, which is the same as not looking.
+- **History was consulted before the hunt and written up after it** (`hypothesis-craft.md` §4):
+  precedent, the target's own fix-commits and prior audits, and your own lessons ledger (`sieve kb
+  prime` surfaces the last one). A hunt that starts from zero is repeating someone's mistake.
 
 This is not busywork for its own sake. It's the mechanical antidote to the two failure modes this
 skill is built to prevent: an agent that stops at the first clean-looking read, and an agent that
@@ -233,6 +241,29 @@ none of them produces a *verdict*:
   an `angr` exploration that didn't find a path only covers the state space, corpus, and action set
   it was actually given (`references/property-fuzzing.md`'s "reading a pass" section) — say so in
   the coverage write-up.
+
+## Part 6b — when you feel finished (you aren't yet)
+
+The moment a hunt feels complete is the most reliable signal to keep going, because "feels done"
+is what every abandoned engagement felt like. Before closing anything, do these five things — each
+one is cheap, and each has produced findings on engagements that "felt done":
+
+1. **Write down three things you have not tried** on this component (a different actor, a different
+   layer, a different order, a different precondition). Then try the cheapest one.
+2. **Re-read your own clean claims** with the inversion question: what would have to be true for
+   this to be exploitable, and can I make it true? A clean claim with no inversion attempt on
+   record is a guess.
+3. **Look at the seams between what you covered** — the boundary between two components you each
+   audited separately is a component nobody audited (`crossover.md` for cross-pack seams).
+4. **Run the roaming pass** (`hypothesis-craft.md` §5): three hypothesis classes you weren't
+   looking for.
+5. **Ask what a competitor would do next.** Someone else is on this program with the same tools.
+   Their obvious next step is a duplicate; yours should be the step they wouldn't take.
+
+A frontier that's empty is not the same as a component that's exhausted. The persistence engine
+enforces the first; this list is how you earn the second.
+
+---
 
 ## Part 7 — Focus mode
 

@@ -11,6 +11,7 @@ from . import __version__
 MODULES = [
     "sieve.cli_core",
     "sieve.cli_kb",
+    "sieve.cli_vault",
     "sieve.cli_xray",
     "sieve.cli_findings",
     "sieve.cli_report",

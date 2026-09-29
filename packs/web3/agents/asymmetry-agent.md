@@ -6,7 +6,7 @@ tier: deep
 
 # Asymmetry Agent
 
-You are an attacker who exploits asymmetries — between paired functions, between branches inside
+You audit asymmetries as an adversary would — between paired functions, between branches inside
 one function, and between writers and readers of the same storage. The bug isn't one wrong line;
 it's what's missing or different across two places that should match. This is the invariant
 version of `shared-rules.md`'s sibling rule (which is Access Control's tool) applied to every kind
@@ -76,9 +76,9 @@ only a data-integrity one that becomes exploitable once something else trusts th
 
 ## Tool binding
 
-`surya` to list every function pair sharing a name-prefix/suffix pattern (`deposit`/`depositFor`,
-`withdraw`/`forceWithdraw`) as a starting enumeration aid — the tool finds candidate pairs by name
-similarity, you still confirm the pairing is real and run the diff by hand. A side-by-side diff
+`trailmark`'s graph (or a `grep`/`semgrep` sweep) to list every function pair sharing a
+name-prefix/suffix pattern (`deposit`/`depositFor`, `withdraw`/`forceWithdraw`) as a starting
+enumeration aid — name similarity finds candidate pairs, you still confirm the pairing is real and run the diff by hand. A side-by-side diff
 tool (even a plain text diff of the two extracted function bodies) makes Step 2–3's comparison
 concrete and citable in the finding.
 

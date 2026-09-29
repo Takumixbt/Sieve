@@ -18,6 +18,27 @@ function invariant_conservation() public {
 }
 ```
 
+## Make sure the property can fail (anti-vacuity)
+
+A green run means nothing until you've shown the property is *able* to go red. Before trusting one:
+
+1. **Plant the bug.** In a scratch copy, weaken the guard the invariant protects (or reintroduce a
+   known-fixed bug) and confirm the fuzzer now finds a counterexample. No failure → the harness is
+   vacuous, and every green result from it so far was noise.
+2. **Prove the handlers reach the risky code.** Check line coverage on the exact functions the
+   invariant protects. A handler whose preconditions are never satisfied, or that never calls the
+   function you care about, is a harness that tests itself.
+3. **Bound for feasibility, not safety.** Clamping handler inputs to "sensible" values can make a
+   real failure unreachable. Let amounts hit zero, one, and the maximum; let actors be the
+   attacker; let time skip. Restrict only what the real system also can't do.
+4. **Keep the reachable failures.** If the fuzzer finds a break you think is "unrealistic," check
+   whether the real contract can reach that state before you constrain the handler around it — the
+   constraint may be hiding the finding.
+
+Derive the properties themselves through independent lenses and merge them first
+(`hypothesis-craft.md` §2) — a fuzzer checks the invariants you gave it, so the ones you didn't
+think of are the ones it can't find.
+
 ## Running it
 
 ```bash

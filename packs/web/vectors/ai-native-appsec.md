@@ -69,15 +69,6 @@ than anywhere else in the repo).
 - cwe: CWE-78
 - kb: MCP server exec subprocess injection STDIO transport
 
-### AI-SUPPLY-01 · MCP / AI-plugin package rug-pull
-- signal: the target's agent stack depends on a third-party MCP server or plugin package pulled from a public registry/marketplace with auto-update enabled and no pinned version hash or signature verification
-- attack: (simulate, never actually publish) demonstrate that a version bump to a currently-installed package could introduce arbitrary behavior change with no signal reaching the operator beyond a routine changelog notification
-- proof: show the actual dependency-resolution/update mechanism in use (lockfile absence, `latest`-tag tracking, no hash pinning) and that no signature/provenance check runs at install or update time — this is a control-gap finding, proven by absence of a control
-- fp: some registries/marketplaces do enforce package signing or maintainer-identity verification that meaningfully raises the bar even without the consuming org pinning versions — check the registry's actual guarantees first
-- sev: High
-- cwe: CWE-494
-- kb: MCP package supply chain rug pull postmark-mcp
-
 ## Agent memory and RAG poisoning
 
 ### AI-MEM-01 · Agent memory poisoning via ordinary query-only interaction
@@ -99,14 +90,3 @@ than anywhere else in the repo).
 - sev: Critical
 - cwe: CWE-863
 - kb: toxic agent flows MCP composed tool call authorization bypass GitHub
-
-## Jailbreak and guardrail bypass
-
-### AI-JAILBREAK-01 · LLM-as-judge guardrail bypass
-- signal: the application's safety/content-moderation layer is itself implemented as an LLM call (a second model, or the same model with a different system prompt) grading the primary model's input or output
-- attack: craft a payload that simultaneously (a) achieves the attacker's goal against the primary model and (b) is worded to also manipulate the judge model into scoring it as safe — framing a harmful request as a fictional/academic exercise both models interpret charitably
-- proof: the harmful action/output is produced by the primary model and the judge's own log shows it scored the interaction as safe/passing — demonstrating the judge itself was deceived, not merely that moderation was absent
-- fp: some architectures correctly isolate the judge from ever seeing attacker-controlled framing (evaluating only the final structured output against a strict schema, not free-text reasoning) — confirm what the judge actually receives as input first
-- sev: High
-- cwe: CWE-693
-- kb: LLM as judge guardrail bypass prompt injection

@@ -266,8 +266,61 @@ def cmd_writeback(args: argparse.Namespace) -> int:
         ix.upsert(m, b, path)
         written += 1
         print(f"{action}: {path}")
-    print(f"write-back: {written} confirmed card(s) written, {skipped} skipped")
+    lessons = _dead_end_lessons(eng, cfg, ix, vault)
+    print(f"write-back: {written} confirmed card(s) written, {skipped} skipped, {lessons} dead-end lesson(s) recorded")
     return 0
+
+
+LESSON_KINDS = ("false-positive", "miss", "revived", "technique", "dead-end")
+
+
+def _lesson_card(kind: str, title: str, domain: str, body: str, source_ref: str, eng: Optional[Engagement],
+                 stack: str = "") -> "tuple[Dict[str, Any], str]":
+    meta: Dict[str, Any] = {"title": title, "source": "own", "source_ref": source_ref, "domain": domain,
+                            "class": "lesson", "status": "curated", "stack": stack,
+                            "tags": ["lesson", kind, domain], "last_used": util.today()}
+    if eng:
+        meta["used_in"] = [eng.load()["id"]]
+    return meta, f"# {title}\n\n**kind:** {kind}\n\n{body.strip()}\n"
+
+
+def cmd_lesson(args: argparse.Namespace) -> int:
+    """A card for something the engagement taught you — the ledger `sieve kb prime` reads next time."""
+    cfg, ix, vault = _ctx()
+    eng = Engagement.find()
+    wb = cfg.get("kb.writeback", {}) or {}
+    domain = args.domain or (eng.load()["packs"][0] if eng else "web3")
+    meta, body = _lesson_card(args.kind, args.title, domain, args.body, args.ref or (eng.load()["id"] if eng else "manual"),
+                              eng, args.stack or "")
+    path, action = kb_store.write_card(vault, meta, body, sanitize_on=bool(wb.get("sanitize", True)))
+    m, b = kb_store.read_card(path)
+    ix.upsert(m, b, path)
+    print(f"{action} lesson card: {path}")
+    return 0
+
+
+def _dead_end_lessons(eng: Engagement, cfg: Config, ix: kb_store.Index, vault: str) -> int:
+    """Killed hypotheses are data: every frontier row closed `dead` becomes a lesson card carrying
+    the ladder rungs that were tried, so the next engagement doesn't re-walk the same road."""
+    from . import frontier
+    wb = cfg.get("kb.writeback", {}) or {}
+    if not wb.get("lessons", True):
+        return 0
+    eid = eng.load()["id"]
+    n = 0
+    for r in frontier.load(eng):
+        if r["status"] != "dead":
+            continue
+        att = frontier.attempts(eng, r["id"])
+        body = f"Component `{r['component']}`, lens `{r['lens']}`, pack `{r['pack']}`.\n\n" + \
+               "\n".join(f"- `{a['rung']}`: {a['note']}" for a in att)
+        meta, text = _lesson_card("dead-end", f"Dead end: {r['component']} ({r['lens']})", r["pack"] or
+                                  eng.load()["packs"][0], body, f"{eid}:{r['id']}", eng)
+        path, _ = kb_store.write_card(vault, meta, text, sanitize_on=bool(wb.get("sanitize", True)))
+        m, b = kb_store.read_card(path)
+        ix.upsert(m, b, path)
+        n += 1
+    return n
 
 
 def cmd_prime(args: argparse.Namespace) -> int:
@@ -309,9 +362,17 @@ def cmd_prime(args: argparse.Namespace) -> int:
                 lines.append(f"- [{h['source']}] {h['title']} ({h['severity'] or '?'}"
                              f"{', ' + h['firm'] if h['firm'] else ''}) — `{h['ref']}` {h['url']}")
         lines.append("")
+    lessons = ix.con.execute("SELECT id, title, tags, stack FROM cards WHERE class='lesson' AND domain IN (%s) "
+                             "ORDER BY updated DESC LIMIT 12" % ",".join("?" * len(st["packs"])),
+                             list(st["packs"])).fetchall()
+    if lessons:
+        lines += ["## Your own lessons", "",
+                  "_What earlier engagements taught you — read before hunting, not after (hypothesis-craft.md §4)._", ""]
+        lines += [f"- {r['title']} — `{r['id']}`" + (f" ({r['stack']})" if r["stack"] else "") for r in lessons]
+        lines.append("")
     util.atomic_write(eng.path("xray", "precedents.md"), "\n".join(lines) + "\n")
-    print(f"wrote {eng.path('xray', 'precedents.md')} ({total_local} local, {total_online} online precedents; "
-          f"{args.max_online - budget} online query(ies) used)")
+    print(f"wrote {eng.path('xray', 'precedents.md')} ({total_local} local, {total_online} online precedents, "
+          f"{len(lessons)} lesson(s); {args.max_online - budget} online query(ies) used)")
     return 0
 
 
@@ -396,6 +457,15 @@ def register(sub: Any) -> None:
     q.add_argument("--body")
     q.add_argument("--used-in", help="finding id it helped with (marks the card curated)")
     q.set_defaults(func=cmd_add)
+
+    q = ks.add_parser("lesson", help="record something an engagement taught you (read back by `kb prime`)")
+    q.add_argument("--kind", required=True, choices=list(LESSON_KINDS))
+    q.add_argument("--title", required=True)
+    q.add_argument("--body", required=True, help="the wrong assumption / the lens that would have caught it / the move that paid")
+    q.add_argument("--domain", choices=["web3", "web", "binary"])
+    q.add_argument("--stack")
+    q.add_argument("--ref", help="engagement or finding this came from")
+    q.set_defaults(func=cmd_lesson)
 
     q = ks.add_parser("prime", help="build .sieve/xray/precedents.md for this engagement")
     q.add_argument("--max-online", type=int, default=8)

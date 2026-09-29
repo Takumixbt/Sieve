@@ -1,8 +1,10 @@
 """Knowledge-base storage: markdown cards with YAML frontmatter, a SQLite FTS5 index, and the
 sanitizer that stops secrets and personal data from ever reaching a card.
 
-Cards are plain files. Obsidian (or any editor) can open the vault folder, but nothing here
-depends on it. The index is a cache: `reindex` rebuilds it from the files at any time.
+Cards are plain files and the vault is Obsidian-ready: each card ends in a `## Links` block of
+[[wikilinks]] (its vector card, class hub, domain hub, and the engagements that used it — see
+`vault.py`), so the graph view clusters what has paid. Nothing here depends on Obsidian. The index
+is a cache: `reindex` rebuilds it from the files at any time.
 """
 from __future__ import annotations
 
@@ -14,6 +16,7 @@ import sqlite3
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from . import util, yamlish
+from .vault import with_links
 
 DOMAIN_CODE = {"web3": "W3", "web": "WEB", "binary": "BIN"}
 STATUS_RANK = {"confirmed": 4, "curated": 3, "seed": 2, "raw": 1}
@@ -117,10 +120,11 @@ def write_card(vault: str, meta: Dict[str, Any], body: str, sanitize_on: bool = 
         if used:
             merged["used_in"] = used
         merged["first_seen"] = old.get("first_seen", meta["first_seen"])
-        if merged == old and body.strip() == old_body.strip():
+        new_body = body if body.strip() else old_body
+        if merged == old and with_links(new_body, merged).strip() == old_body.strip():
             return path, "unchanged"
-        meta, body, action = merged, (body if body.strip() else old_body), "updated"
-    util.atomic_write(path, yamlish.join_frontmatter(_ordered(meta), body))
+        meta, body, action = merged, new_body, "updated"
+    util.atomic_write(path, yamlish.join_frontmatter(_ordered(meta), with_links(body, meta)))
     return path, action
 
 

@@ -30,17 +30,6 @@ lessons distilled from the full incident set.
 - cwe: CWE-841
 - kb: DAO governance takeover low quorum treasury drain OR chain governance MsgUpdateAdmin contract admin override
 
-## AI-agent trust chains
-
-### WEB3-AIAGENT-01 · AI-agent permission-chain abuse (prompt injection to on-chain execution)
-- signal: any architecture where one AI system's free-text or structured output (a chatbot, an LLM-driven trading/social agent) is consumed by a second automated system (a bot, a custodial wallet executor, another agent) as an implicitly-authorized instruction to move real funds, with no independent non-LLM confirmation step in between
-- attack: craft an input to the first AI system (direct prompt, or an indirect vector such as an NFT metadata field, ENS name, or encoded/obfuscated text like Morse code or base64 designed to evade naive prompt-injection filters) that causes it to emit an output resembling an authorized transfer instruction; the downstream execution agent, trusting the first AI's output as ground truth, signs and broadcasts the transaction
-- proof: a red-team transcript showing the injected input, the AI's resulting output, and the downstream agent executing a real (or testnet-simulated) transfer purely on the strength of that output, with no human or cryptographic confirmation gate exercised
-- fp: an agent that only *proposes* a transaction for a human or a separate hardware-signer to approve is not vulnerable to this pattern even if its reasoning can be manipulated — the bug is the missing authorization gate, not the manipulability of the LLM's text itself
-- sev: Critical
-- cwe: CWE-863
-- kb: AI agent prompt injection unauthorized transfer permission chain OR LLM output treated as authorized transaction
-
 ## Intent / solver settlement
 
 ### WEB3-INTENT-01 · Intent/solver settlement-path verification gaps

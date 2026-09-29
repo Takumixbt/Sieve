@@ -40,9 +40,9 @@ unexpected argument shape than a single-path function.
 ## Firmware / embedded targets
 
 When the target is a firmware image rather than a single binary: `binwalk` to extract the embedded
-filesystem and identify compression/encryption; `EMBA` (`local-tooling.md` 3.1) for a full
-automated firmware security baseline before manual analysis starts, since firmware images
-routinely contain dozens of binaries and a manual first pass over all of them doesn't scale.
+filesystem and identify compression/encryption (`local-tooling.md` 3.1). Firmware images routinely
+contain dozens of binaries, so triage them with `checksec` plus an import-table sweep for dangerous
+sinks first, and spend Ghidra time on the ones that parse untrusted input.
 
 ## Mobile-specific handoff
 

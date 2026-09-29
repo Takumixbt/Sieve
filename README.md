@@ -35,10 +35,11 @@ attribution: [`CREDITS.md`](CREDITS.md).
 
 ## What makes it different
 
-- **Real tools, not reimplementations.** No custom Solidity parser, no custom web crawler — the
-  x-ray's own mechanical layer (`sieve xray`) only greps, counts, and merges structured output
-  real tools already produced. Slither/Aderyn findings and Burp/subfinder/katana output feed in as
-  corroborating leads, gated exactly like anything else.
+- **Real tools, not reimplementations — and few of them.** Burp driven over its MCP server covers
+  most of the web stack; `sieve install <pack>` installs the rest from one table. No custom Solidity
+  parser, no custom web crawler — the x-ray's mechanical layer (`sieve xray`) greps, counts, runs
+  Slither/Aderyn/trailmark itself, and merges structured output real tools already produced. Their
+  findings feed in as leads, gated exactly like anything else.
 - **Persistence is enforced, not requested.** `sieve hooks install` registers a Stop hook that
   blocks the agent from ending a turn while the engagement's work queue (`.sieve/frontier.tsv`) has
   open rows — and calls out a permission-seeking ending ("would you like me to continue?") by name.
@@ -47,9 +48,13 @@ attribution: [`CREDITS.md`](CREDITS.md).
 - **A real gate.** Six sequential gates (`references/judging.md`) — refutation, reachability,
   trigger, invariant/intent, impact, proof — run by a verifier that never gated its own discovery.
   Confidence is computed by the agent per a fixed arithmetic, never inflated to hit a payout tier.
-- **A knowledge base that compounds.** Local markdown cards, a rate-limited Solodit/OSV broker
-  (so twelve parallel agents never blow either API's real limit), and `sieve kb writeback` growing
-  the store from every engagement's confirmed findings.
+- **A knowledge base that compounds — and shows you the graph.** Local markdown cards wired for
+  Obsidian (`sieve vault init`: wikilinks, class/domain hubs, an engagement graph), a rate-limited
+  Solodit/OSV broker, and `sieve kb writeback` growing the store from confirmed findings *and* killed
+  hypotheses; your own false positives and misses become lessons the next engagement reads first.
+- **A method for seeing what nobody else does.** Invariants derived through independent lenses,
+  an asymmetry checklist, history-driven hunting, and a roaming pass for the classes no lens was
+  looking for (`references/hypothesis-craft.md`) — inside bright lines the agent must follow exactly.
 - **Three packs, one seam-hunting pass.** `references/crossover.md` — the highest-value bugs
   usually live where a web control gates a web3 privilege, or a native binary underwrites a
   contract's guarantee.
@@ -75,6 +80,7 @@ Sieve/
 ├─ references/            THE METHOD — read in full, every engagement
 │   ├─ shared-rules.md        the contract every dispatched agent operates under
 │   ├─ methodology.md         completeness contract, mental tools, creativity techniques
+│   ├─ hypothesis-craft.md    invariants, asymmetric thinking, learning from history, the roaming pass
 │   ├─ judging.md              the six-gate judge
 │   ├─ xray.md                 mechanical-then-narrative x-ray discipline
 │   ├─ dispatch.md             bundle assembly, parallel-spawn mechanics
@@ -84,7 +90,7 @@ Sieve/
 │   ├─ report-formatting.md    the assembler's rules
 │   ├─ cvss-guide.md           scoring judgment — deliberately no calculator
 │   ├─ property-fuzzing.md     the invariant-handler pattern for fuzz suites
-│   └─ local-tooling.md        the full external tool roster, by domain
+│   └─ local-tooling.md        one best tool per job — with the install command for each
 │
 ├─ agents/README.md       THE ROSTER — every lens agent, ★-marked core vs. deep, bundle spec
 ├─ packs/                 THE HUNTERS — one directory per domain, same shape in each
@@ -96,8 +102,10 @@ Sieve/
 ├─ sieve/                 THE ENGINE — stdlib-only Python, mechanical work only
 │   ├─ main.py · __main__.py          CLI dispatch
 │   ├─ cli_core.py                    init/phase/pass/status/ladder/frontier/hook/finish
-│   ├─ cli_kb.py                      kb index/search/get/osv/use/add/prime/writeback/doctor
-│   ├─ cli_xray.py · cli_report.py · cli_setup.py
+│   ├─ cli_kb.py                      kb index/search/get/osv/use/add/lesson/prime/writeback/doctor
+│   ├─ cli_vault.py · vault.py        Obsidian wiring: knowledge vault + engagement graph
+│   ├─ cli_setup.py · tooling.py      doctor / install / lint, driven by references/local-tooling.md
+│   ├─ cli_xray.py · cli_report.py
 │   ├─ state.py · config.py · fence.py · frontier.py · hook.py
 │   ├─ kb_store.py · kb_net.py · vectors.py
 │   ├─ xray_web3.py · xray_web.py · xray_git.py

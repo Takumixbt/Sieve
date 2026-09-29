@@ -6,7 +6,8 @@ user_home: ~/.sieve
 
 # ---------------------------------------------------------------- knowledge base
 kb:
-  # Plain markdown cards with YAML frontmatter. Obsidian can open this folder, but nothing requires it.
+  # Plain markdown cards with YAML frontmatter, wired for Obsidian: `sieve vault init` scaffolds this
+  # folder as a vault and every card carries [[wikilinks]] (vector, class, domain, engagements).
   vault: ~/.sieve/kb
   index: ~/.sieve/index.db
   sources:
@@ -33,6 +34,7 @@ kb:
   writeback:
     curated: true              # precedents an agent fetched AND used become cards (status: curated)
     confirmed: true            # own gate-passed findings become cards (status: confirmed)
+    lessons: true              # killed hypotheses (frontier rows closed dead) become lesson cards
     min_confidence: 75
     sanitize: true             # refuse to write secrets/keys/PII into cards
 

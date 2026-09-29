@@ -1,8 +1,9 @@
 # Setup
 
-Sieve's own orchestration layer needs nothing beyond Python 3.9+ and a POSIX shell (or native
-PowerShell on Windows). Everything below is the real security tooling it drives — install what
-your engagements actually need; `sieve doctor` tells you what's missing and for which pack.
+Sieve's own orchestration layer needs nothing beyond Python 3.9+ and a POSIX shell (or PowerShell on
+Windows). The real security tooling it drives is installed from one table
+(`references/local-tooling.md`) by one command. Install what your engagements need; `sieve doctor`
+tells you what's missing, per pack.
 
 ## 1. The skill itself
 
@@ -13,55 +14,44 @@ sieve banner                               # confirms the install
 sieve hooks install --scope user           # registers the persistence Stop hook (Claude Code)
 ```
 
-On native Windows PowerShell (no WSL): `python3` must resolve; run
-`python -m sieve <command>` from the skill's directory in place of the `sieve` shim, or add a
-`sieve.ps1` wrapper that does the same `PYTHONPATH` + `python -m sieve` dispatch as `bin/sieve`.
+On native Windows PowerShell (no WSL): `python3` must resolve; run `python -m sieve <command>` from
+the skill's directory in place of the `sieve` shim, or add a `sieve.ps1` wrapper that does the same
+`PYTHONPATH` + `python -m sieve` dispatch as `bin/sieve`.
 
-## 2. Knowledge base (optional, recommended for web3)
+## 2. The tooling — one command per pack
+
+```bash
+sieve install prereq          # go, pipx, cargo, uv, docker — dry run: prints the commands
+sieve install prereq --run    # ...and executes the missing ones (asks first; --yes to skip)
+
+sieve install web             # subfinder, httpx, katana, gau, ffuf, nuclei, trufflehog, sqlmap + Burp steps
+sieve install web3            # foundry, slither, aderyn, trailmark, semgrep, heimdall, halmos, echidna, medusa
+sieve install web3-chains --only anchor   # per-chain toolchains, only what the target uses
+sieve install binary          # checksec, binwalk, Ghidra, r2, gdb+pwndbg, AFL++, pwntools, jadx, frida, MobSF...
+```
+
+Every command is dry-run unless you pass `--run`. Tools that can't be installed by a command (Burp
+Suite, its BApp extensions, Ghidra, CloakBrowser) print as manual steps with what to download.
+`sieve doctor` re-checks everything, including tools that landed in `~/.cargo/bin`, `~/go/bin`,
+`~/.foundry/bin` or `~/.local/bin` before your shell's `PATH` knew about them.
+
+**Burp MCP (web):** install Burp Suite Pro, add **MCP Server** from the BApp Store, then point your
+harness at it — for Claude Code, `claude mcp add --transport sse burp http://127.0.0.1:9876` (check
+the host and port on the extension's MCP tab first). Add Autorize, Turbo Intruder, Param Miner, JWT
+Editor, HTTP Request Smuggler, and InQL from the same BApp Store.
+
+## 3. Knowledge base and Obsidian
 
 ```bash
 export CYFRIN_API_KEY=...     # solodit.cyfrin.io -> profile menu -> API Keys -> generate
 sieve kb doctor --live        # confirms the key works with one real, cheap query
+sieve vault init              # ~/.sieve/kb becomes an Obsidian vault: vector notes, hubs, linked cards
 ```
 
-No key → `sieve kb search --online` reports the missing-key error clearly and every other command
-still works against the local/seed cards. `sieve kb osv` (OSV.dev) needs no key at all.
-
-## 3. Real tooling, by pack
-
-Full roster and Burp extension list: `references/local-tooling.md`. Quick install:
-
-```bash
-# --- Web ---
-go install github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest
-go install github.com/projectdiscovery/httpx/cmd/httpx@latest
-go install github.com/projectdiscovery/katana/cmd/katana@latest
-go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest
-go install github.com/ffuf/ffuf/v2@latest
-go install github.com/lc/gau/v2/cmd/gau@latest
-go install github.com/hahwul/dalfox/v2@latest
-pip install sqlmap
-# Burp Suite: download from portswigger.net/burp; install extensions from the BApp Store inside the app.
-# CloakBrowser (stealth Chromium for bot-defended targets — local-tooling.md 1.1):
-# see github.com/CloakHQ/CloakBrowser for the current binary/build flow, it's not a package-manager install.
-
-# --- Web3 ---
-curl -L https://foundry.paradigm.xyz | bash && foundryup
-pip install slither-analyzer mythril semgrep
-cargo install aderyn
-curl -L https://get.heimdall.rs | bash && bifrost   # heimdall-rs: bytecode decompile/disassemble/cfg/dump
-# Echidna / Medusa: grab the release binary for your platform from their GitHub releases.
-
-# --- Binary / mobile ---
-sudo apt install checksec binutils file        # macOS: brew install checksec binutils
-brew install radare2 jadx apktool android-platform-tools   # or your distro's equivalents
-git clone https://github.com/AFLplusplus/AFLplusplus && cd AFLplusplus && make
-pip install frida-tools objection
-# Ghidra: download from https://github.com/NationalSecurityAgency/ghidra/releases
-# MobSF: docker run -p 8000:8000 opensecurity/mobile-security-framework-mobsf
-```
-
-`sieve doctor` re-checks all of the above and tells you exactly what's still missing.
+No key → `sieve kb search --online` reports the missing-key error clearly and every other command still
+works against the local/seed cards. `sieve kb osv` needs no key. Obsidian is optional: open
+`~/.sieve/kb` (and, per engagement, `.sieve/vault/` after `sieve vault export`) with *Open folder as
+vault* to get the graph.
 
 ## 4. Verify
 
@@ -74,8 +64,7 @@ sieve status
 ```
 
 You should see the engagement created, phase `init`, and a `NEXT:` line telling you to fill in
-`.sieve/case.md`. Delete `/tmp/sieve-smoke` when done — it's a throwaway smoke test, not a real
-engagement.
+`.sieve/case.md`. Delete `/tmp/sieve-smoke` when done — it's a throwaway smoke test.
 
 ## Configuration
 

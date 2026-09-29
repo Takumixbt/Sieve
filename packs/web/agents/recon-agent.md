@@ -17,17 +17,18 @@ Every phase below runs to its own natural completion (the tool stops finding new
 
 ## Phase 1 — passive discovery
 
-- Subdomain enumeration: `subfinder`, cross-checked against `amass` (their result sets rarely
-  match exactly; the union is the real surface, not either tool alone) and certificate-transparency
-  search (`crt.sh`). Chain into `dnsx` to resolve and filter dead entries.
+- Subdomain enumeration: `subfinder`, cross-checked against certificate-transparency search
+  (`crt.sh`) — their result sets rarely match exactly; the union is the real surface, not either
+  source alone. Pipe the union into `httpx` to resolve, probe, and drop dead entries.
 - DNS records for forgotten infrastructure: staging/internal/legacy API version subdomains
   (`api-v1.`, `staging.`, `internal.`, `dev.`, `test.`) — these are disproportionately under-
   hardened relative to the production surface and worth enumerating explicitly, not stumbling
   onto.
-- `gau`/`waybackurls` for historical URLs — an endpoint removed from the current UI but never
+- `gau` for historical URLs — an endpoint removed from the current UI but never
   actually decommissioned server-side is a live finding waiting to be confirmed.
-- Cloud asset exposure: `cloud_enum`/`S3Scanner`/`GCPBucketBrute` against every naming pattern
-  derived from the target's own domain and product names.
+- Cloud asset exposure: bucket and storage names derived from the target's own domain and product
+  names (`company`, `company-dev`, `company-backup`, ...) probed directly with `httpx`/`curl`; an
+  open listing or a takeover-able dangling CNAME is a lead.
 - Exposed `.git` directories, backup files (`.bak`, `.sql`, `.zip`, `.env`) left in a web root —
   check every discovered host, not just the primary one.
 - Secrets in accessible repositories: `trufflehog`/`gitleaks` against any public repo the recon
@@ -39,12 +40,12 @@ Every phase below runs to its own natural completion (the tool stops finding new
 - `httpx -tech-detect -sc -title` across the full subdomain list for liveness, status, and
   technology fingerprint. Feed every detected technology + version into `sieve kb osv` — a known
   CVE against a fingerprinted version is a lead, not a finding, until reachability is confirmed.
-- Visual triage: `gowitness`/`aquatone` to screenshot every live host — invaluable for spotting an
+- Visual triage: `httpx -screenshot` on every live host — invaluable for spotting an
   obviously-interesting admin panel or an unexpected staging environment across a large host list
   fast, rather than opening each one by hand.
 - `katana` for an active, JS-aware crawl of every live host; `nuclei` for a templated sweep —
   treat every nuclei hit as a LEAD to verify by hand, never a finding on its own.
-- `ffuf`/`feroxbuster` for directory/parameter fuzzing once a rough map exists, seeded with a
+- `ffuf` for directory/route fuzzing (parameters are Param Miner's job) once a rough map exists, seeded with a
   wordlist relevant to the fingerprinted tech stack, not a generic list alone.
 
 ## Phase 3 — JS bundle analysis (frequently the single highest-yield recon step)
@@ -53,7 +54,7 @@ Every JS file the app ships is a map of its own API — developers routinely lea
 debug routes in client-side code the visible UI never links to. For every JS bundle:
 
 - Extract every `/api/...`-shaped string, every hidden host, every hardcoded credential or key
-  pattern (`LinkFinder`/`JSluice`/`SecretFinder`, or a Burp **JS Link Finder**/**GAP** pass).
+  pattern (`katana`'s JS parsing plus `trufflehog` for secrets, then read the bundles yourself).
 - Fetch the sourcemap if referenced and public (`//# sourceMappingURL=...`) — it un-minifies the
   entire bundle and turns an obfuscated string search into a readable source-code search.
 - Cross-reference every discovered endpoint against the current UI's actual requests — an endpoint

@@ -41,7 +41,7 @@ For every object referenced by an ID in `surface.tsv`:
 
 - **JWT.** `alg: none`, RS256→HS256 confusion, `kid` header injection/path traversal, missing
   expiry validation, a weak HS256 secret worth brute-forcing (JWT Editor extension —
-  `local-tooling.md` 1.2, `jwt_tool` for the CLI-driven equivalent).
+  `local-tooling.md` 1.2).
 - **Password reset / email change.** Host-header poisoning of the reset link, the token leaking via
   Referer, a token not bound to the account it was issued for, a race between requesting and using
   it, a reset that doesn't invalidate existing sessions.
@@ -76,9 +76,8 @@ Any        a bulk/batch endpoint that authorizes once, then loops over caller-su
 
 Burp **Autorize** as the default engine for the whole IDOR sweep — set the low-privilege session
 once, browse as the high-privilege user, let it flag every endpoint that still succeeds. **JWT
-Editor**/`jwt_tool` for every JWT-related test above. `x8`/`Arjun` to find an undocumented
-parameter (a hidden `role`/`admin` field) an endpoint might accept before you'd otherwise guess it
-exists.
+Editor** for every JWT-related test above. **Param Miner** to find an undocumented parameter (a
+hidden `role`/`admin` field) an endpoint might accept before you'd otherwise guess it exists.
 
 ## Proof oracle
 

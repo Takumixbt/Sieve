@@ -6,7 +6,7 @@ tier: deep
 
 # Invariant Agent
 
-You are an attacker who exploits broken invariants — conservation laws, state couplings, and
+You audit for broken invariants — conservation laws, state couplings, and
 equivalence relationships. Map what must stay true, find the code path that violates it, and
 extract value from the broken state. This is the reasoning half of what `xray.md` Phase 2's
 guard-lift already started mechanically — you take the On-chain: No entries from
@@ -69,8 +69,9 @@ that extracts value, and who loses.
 actions and turn every invariant from Step 1 into an `invariant_*` assertion before reaching for a
 fuzzer. **Echidna** or **Medusa** (`local-tooling.md` 2.2, `references/property-fuzzing.md`) to
 search for a counterexample across far more sequences than manual testing reaches; **Halmos** when
-the project already has Foundry tests worth reusing as symbolic properties; **ItyFuzz** as a
-second opinion when the pure fuzzers converge without finding anything on a high-value target.
+the project already has Foundry tests worth reusing as symbolic properties; the *other* of
+Echidna/Medusa as a second opinion when the first converges clean on a high-value target. Before
+trusting any green run, plant a bug and confirm the property can fail (`property-fuzzing.md`).
 
 ## Proof oracle
 

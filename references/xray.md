@@ -28,7 +28,7 @@ genuinely isn't installed on this host (run `sieve doctor`, then `setup.md`) or 
 to compile (read the note, fix the build, re-run); either way that's now a recorded, visible gap,
 never a silent one. `--no-auto-static` is the explicit opt-out for a target where running a
 compiler-dependent tool isn't safe or desired (e.g. an unverified bytecode-only target — go straight
-to `heimdall-rs`/`panoramix` decompilation instead, `local-tooling.md` 2.1).
+to `heimdall` decompilation instead, `local-tooling.md` 2.1).
 
 **Why static analysis runs before you read a single line of source, not after:** a detector's
 finding is cheap, mechanical, and exhaustive in a way a first read never is — it will not miss a
@@ -100,7 +100,11 @@ hand — `unknown` is a todo, not a classification.
 
 ## Phase 2 — invariants (web3) / authorization model (web) / attack surface (binary)
 
-**Web3 invariants.** Walk the classified entry points for:
+**Web3 invariants.** Derive them through independent lenses — accounting, authority, ordering,
+equivalence, bounds, trust boundary, promise-vs-enforcement, adversary profit — each written cold,
+then merged into one ranked list (`hypothesis-craft.md` §2). The structural passes below are the
+mechanical half of that; run them, then add what only reasoning finds. Walk the classified entry
+points for:
 
 - **Conservation** — two state variables that move by equal-and-opposite amounts in one function
   body (`totalSupply += x` paired with `balances[to] += x`) implies `A == Σ B[key]`. Note every
@@ -120,14 +124,14 @@ Write `xray/invariants.md`: one numbered `INV-<n>` entry per invariant, its deri
 prove it), and On-chain: Yes/No. This numbered list is what `judging.md` Gate 4 checks findings
 against, and what the report's Coverage section counts probed vs. unprobed against.
 
-**This list is also mythril's target list, not just a narrative artifact.** `mythril` is slow enough
-that auto-running it against a whole codebase is the wrong tradeoff (`local-tooling.md` 2.1) — but
-once `xray/invariants.md` exists, run it *targeted*: every `On-chain: No` guard-lift entry names an
-unguarded write site, and every function on that list is exactly the kind of arithmetic/reachability
-question mythril's symbolic execution is strongest at. `mythril analyze <path> --function <name>`
-against precisely those functions turns "operator picks functions to symbolically execute by
-guessing" into "the invariant pass already told you which functions are worth the wait" — cheaper
-and higher-signal than either a blind full-codebase run or manual selection.
+**This list is also the target list for symbolic and fuzz tooling, not just a narrative artifact.**
+Symbolic runs are slow enough that pointing them at a whole codebase is the wrong tradeoff
+(`local-tooling.md` 2.1) — but once `xray/invariants.md` exists you know exactly where to aim them:
+every `On-chain: No` guard-lift entry names an unguarded write site, and each such function is the
+kind of reachability question `halmos` answers well when you state the property as a Foundry test
+(`halmos --function check_<property>`), or a fuzzer answers when the property becomes an
+`invariant_*` handler (`property-fuzzing.md`). "The invariant pass already told you which functions
+are worth the wait" beats both a blind full-codebase run and picking functions by guesswork.
 
 **Web authorization model.** Build the `(endpoint × method × identity × object)` matrix from
 `surface.tsv`: for every endpoint that takes an object ID, do the sibling paths (same resource,

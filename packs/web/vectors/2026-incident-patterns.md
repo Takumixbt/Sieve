@@ -28,15 +28,6 @@ on a card's age alone.
 - cwe: CWE-863
 - kb: GraphQL federation interface directive authorization bypass Apollo
 
-### WEB-GRAPHQL-02 · Blind federated sub-graph injection
-- signal: a gateway federates multiple independently-owned/deployed subgraphs and trusts subgraph responses / entity-resolution metadata without per-subgraph output validation at the gateway boundary
-- attack: craft a query that traverses entity references across subgraph boundaries into a subgraph the caller has no authorization for; when direct response inspection is blocked, infer leaked field values via timing/error-shape/entity-resolution side channels (blind exfiltration)
-- proof: statistically significant, reproducible correlation between a boolean/timing oracle and a known-true fact about data the caller should not access — not a one-off timing blip
-- fp: normal query-complexity-driven latency variance across different entity types can mimic a timing oracle; baseline latency distribution per query shape before claiming a channel exists
-- sev: High
-- cwe: CWE-200
-- kb: federated GraphQL blind subgraph injection data leak
-
 ## Cache poisoning
 
 ### WEB-CACHE-03 · Cache-key injection via unseparated concatenation
@@ -67,15 +58,6 @@ on a card's age alone.
 - sev: Critical
 - cwe: CWE-284
 - kb: pull_request_target GitHub Actions cache poisoning OIDC theft TanStack
-
-### WEB-CICD-02 · Stale credential enabling mass git-tag mutation
-- signal: an organization publishes GitHub Actions / reusable workflows referenced by version *tag* (not pinned SHA) by downstream consumers, and credential rotation after a prior incident is not verifiably complete
-- attack: use a still-valid credential to force-push new commits onto existing released version tags of a widely-consumed action, injecting malicious code that every consumer pinned to that tag will pull on their next run
-- proof: a tag's underlying commit SHA differs from the SHA originally associated with that tag at release time (compare against GitHub's own audit log, an SBOM snapshot, or a third-party mirror taken before the mutation)
-- fp: legitimate maintainers occasionally do re-tag (fixing a same-day typo) — corroborate with out-of-band signals (unexplained new outbound domains in the diff, credential-harvesting patterns) before calling it compromise
-- sev: Critical
-- cwe: CWE-494
-- kb: GitHub Action tag mutation supply chain force push stale credential
 
 ## SAML / SSO
 
@@ -116,14 +98,3 @@ on a card's age alone.
 - sev: Critical
 - cwe: CWE-918
 - kb: WebSocket upgrade SSRF absolute URI normalization localhost Next.js
-
-## AI-accelerated attack development
-
-### WEB-CHAIN-01 · AI-accelerated exploit-chain compression
-- signal: target has independently-low-severity findings (an image-processing flaw, a minor auth-flow quirk) that individually would not be prioritized, but which touch adjacent trust boundaries
-- attack: use an agentic LLM with tool access (code execution, HTTP request crafting, iterative exploit refinement) to rapidly hypothesize and test chains linking two-or-more individually-modest bugs into a full account-takeover — what previously took a human researcher days of manual pivoting, an agentic loop can iterate in hours
-- proof: an end-to-end, reproducible chain from the initial low-severity bug to a fully authenticated session as a victim account, with every intermediate step's request/response captured — chain diagrams alone, without raw traffic, are not sufficient proof
-- fp: agentic tooling can produce plausible-looking multi-step chains in its reasoning trace that don't actually work end-to-end when replayed manually — always manually replay the full chain outside the agent's own harness before reporting it as proven
-- sev: Critical
-- cwe: CWE-284
-- kb: chained vulnerabilities account takeover AI-assisted exploit development 2026

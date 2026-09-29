@@ -92,6 +92,39 @@ consciously chose to trust. Secrets are stripped automatically before anything i
 (`kb_store.sanitize`) — never rely on this as the only check; don't paste a live credential into a
 card body in the first place.
 
+## Lessons — learning from your own history
+
+Precedent is other people's history. Your own is more useful and almost never recorded. Four kinds
+of lesson, each a card (`sieve kb lesson --kind ... --title ... --body ...`):
+
+| Kind | Write one when | Put in the body |
+|---|---|---|
+| `false-positive` | A finding died at the gate | The assumption that made it look real, and the guard that saved the target |
+| `miss` | Something you didn't find surfaced later | The lens or asymmetry that would have caught it |
+| `revived` | A dead end turned out alive | The ladder rung that revived it |
+| `technique` | A move unexpectedly paid | The move, and the target shape it worked on |
+
+`sieve kb writeback` also records every frontier row closed `dead` as a `dead-end` lesson, ladder
+attempts included — a killed hypothesis is data. `sieve kb prime` puts your recent lessons for this
+engagement's packs at the bottom of `xray/precedents.md`; read them before the hunt starts. The
+five-minute end-of-engagement post-mortem that feeds this is in `hypothesis-craft.md` §4.
+
+## The Obsidian vault
+
+The knowledge base is an Obsidian vault if you want it to be, and a folder of markdown if you don't.
+
+```
+sieve vault init          # scaffold ~/.sieve/kb (graph colours, vector-card notes, class/domain hubs), link every card
+sieve vault export        # this engagement as a linked note graph in .sieve/vault/ (start at SV-<id>.md)
+```
+
+Every card ends in a `## Links` block — its vector card, class hub, domain hub, and the engagements
+that used it — so Obsidian's graph clusters what has actually paid. `vault export` reshapes what the
+audit already wrote: components, `INV-n` invariants, findings, dead ends (with their ladder rungs),
+and `HYPOTHESIS` blocks become notes that link to each other, colour-coded by type. Agents don't need
+to know about Obsidian: write findings and notes normally; `[[wikilinks]]` you add by hand survive.
+Open the folder with *Open folder as vault* — nothing else is required.
+
 ## Using a precedent in the hunt
 
 A card match, online or local, is always a **lead**: it raises priority and confidence in a

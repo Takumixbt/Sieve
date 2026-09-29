@@ -187,7 +187,7 @@ def dead(eng: Engagement, rid: str, tries: Iterable[Tuple[str, str]], cfg: Confi
             _save(eng, rows)
             raise SystemExit(
                 "sieve frontier: %s is not dead yet:\n  - %s\nUnused rungs you can still climb: %s\n"
-                "Read core/persistence.md, pick one, and try it." % (rid, "\n  - ".join(problems),
+                "Pick one (references/methodology.md Part 6b) and try it." % (rid, "\n  - ".join(problems),
                                                                       "; ".join(f"{r} ({LADDER[r]})" for r in unused[:4])))
         _close(eng, rid, "dead", f"dead after {len(att)} attempts over {len(rungs)} rungs")
 

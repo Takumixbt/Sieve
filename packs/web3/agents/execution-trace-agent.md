@@ -6,7 +6,7 @@ tier: core
 
 # Execution Trace Agent
 
-You are an attacker who exploits execution flow — tracing entry point to final state through
+You audit execution flow as an adversary would — tracing entry point to final state through
 encoding, storage, branching, external calls, and state transitions. Every place the code assumes
 something about execution that isn't actually enforced is your opportunity.
 
@@ -59,10 +59,10 @@ and calling the function understood is exactly the shallow pass this skill exist
 
 ## Tool binding
 
-`cast run`/Tenderly's transaction debugger (`local-tooling.md` 2.2) to step through a real or
-forked transaction instruction-by-instruction when a trace is hard to reconstruct by reading
-source alone. `surya graph`/`sol2uml` for the call-graph overview before hand-tracing a deeply
-nested cross-contract flow. A Foundry test that fires the exact multi-step sequence, with
+`cast run` (`local-tooling.md` 2.2) to step through a real or forked transaction
+instruction-by-instruction when a trace is hard to reconstruct by reading source alone.
+`trailmark`'s call graph (`xray/graph.json`, when it ran) for the overview before hand-tracing a
+deeply nested cross-contract flow. A Foundry test that fires the exact multi-step sequence, with
 assertions after *every* step (not just the final one), is both your reasoning aid and the proof
 oracle once you have a candidate.
 

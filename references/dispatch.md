@@ -31,6 +31,7 @@ variable or heredoc, which silently truncates on large source):
   + .sieve/plan.md                       (the ranked hit list from PRIME — knowledge.md)
   + the in-scope source / surface excerpt relevant to this actor
   + references/methodology.md
+  + references/hypothesis-craft.md        (invariants, asymmetries, history — how to think, not just read)
   + references/shared-rules.md
   + packs/<pack>/vectors/<the cards this agent owns>.md
   + agents/<agent>.md
@@ -73,3 +74,9 @@ but **report every bug you find in full, listed or not**: a bug you reach again 
 still there, and silence reads as "nobody found this," which corrupts the coverage numbers
 downstream. Convergence (no new findings across a full pass) requires **all** roster agents to have
 run at least once in that state, never declared after a partial pass.
+
+**The last pass before convergence is the roaming pass** (`hypothesis-craft.md` §5): no lens, no
+vector cards — one actor (or the orchestrator) lists every class already covered, asks what is
+unusual about *this specific system*, and tests at least three hypothesis classes nobody on the
+roster was looking for. It writes to `raw/roaming.md`, dead ends included. Convergence is declared
+only after it has run, not after the roster's last lens finishes.

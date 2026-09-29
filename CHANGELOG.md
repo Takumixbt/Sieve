@@ -35,6 +35,55 @@ All notable changes to Sieve are documented here. Versioning follows
   for "the x-ray isn't deep enough" is almost always "wire in the real tool's output," not "write
   more Python to replace it."
 
+## [1.3.0] — 2026-09-29
+
+### Added
+- **`references/hypothesis-craft.md`** — the thinking half of the method: a hypothesis standard
+  (assumption / break / observable / cheapest test / why-unseen), invariants derived through eight
+  independent lenses then merged (with anti-vacuity checks and independent-reference audits, taken
+  from `monad-developers/ultrafuzz`'s property-design pipeline), an eight-point asymmetry checklist,
+  the three ledgers of history (precedent, the target's own fix-commits and prior-audit exclusions,
+  your own lessons), and the **roaming pass** — a final hunt for classes no lens was looking for.
+- **Bright lines vs. open ground** (`shared-rules.md`, `SKILL.md`) — an explicit contract: comply
+  exactly with the fence, cite-or-drop, proof-or-lead, the gates, and receipts; think freely
+  everywhere else ("creativity is spent on hypotheses, never on evidence"). Plus concrete
+  hallucination **tripwires** (unseen names, flags from memory, IDs, numbers, "it doesn't exist",
+  hedge words, stale conclusions) and `methodology.md` Part 6b, five things to do when you feel done.
+- **Real Obsidian wiring** — `sieve vault init` turns `~/.sieve/kb` into a vault (graph colours, one
+  note per vector card, class/domain hubs) and every KB card now carries `[[wikilinks]]`; `sieve vault
+  export` writes an engagement as a linked graph (components, `INV-n` invariants, findings, dead ends
+  with their ladder rungs, hypotheses). `sieve/vault.py`, `sieve/cli_vault.py`.
+- **A lessons ledger** — `sieve kb lesson` (false-positive / miss / revived / technique);
+  `kb writeback` records killed hypotheses as dead-end lessons; `kb prime` surfaces your lessons for
+  the engagement's packs before the hunt starts.
+- **`sieve install <prereq|web|web3|web3-chains|binary>`** — prints (or, with `--run`, executes) the
+  install command for every tool, read from the roster table; `sieve doctor` reads the same table
+  and now finds tools in `~/.cargo/bin`, `~/go/bin`, `~/.foundry/bin` etc. before `PATH` refreshes.
+
+### Changed
+- **`references/local-tooling.md` rewritten to one best tool per job** (~45 tools -> ~35, section
+  numbers preserved). Burp Suite over its MCP server is the web hub; six BApp extensions replace a
+  dozen CLIs; sqlmap remains only as confirmation. An explicit "not listed on purpose" section stops
+  the roster creeping back. Every agent's Tool binding updated to match.
+- **Agent openers reframed** from "you are an attacker who exploits X" to "you audit X the way an
+  adversary would" — authorization-forward and precise, with every technique, checklist, and
+  minimum-coverage requirement unchanged.
+- `SKILL.md` tightened and re-sequenced around the new turns (hypothesis-craft in Turn 1, lessons in
+  Turn 4, roaming pass before convergence in Turn 5, post-mortem + vault export in Turn 10);
+  `dispatch.md` bundles carry `hypothesis-craft.md`; `xray.md` Phase 2 derives invariants through
+  lenses and aims symbolic/fuzz tooling at the functions the invariant pass flags;
+  `property-fuzzing.md` gains anti-vacuity rules.
+
+### Removed
+- Vector cards outside bounty-relevant web / web3 / APK-binary scope: EV-charger signalling,
+  hypervisor and GPU-container escapes, browser-engine JIT/CSS/WebGPU UAFs, mobile-kernel GPU and
+  iMessage zero-click chains, registry-control-plane and package-worm assessment cards, an
+  AI-agent-sandbox card duplicated elsewhere, the LLM-as-judge and MCP-rug-pull assessment cards, the
+  unverified federated-subgraph card, and the "AI chaining" card (now methodology, Part 8). 68 -> 50.
+  Git history keeps them.
+- Tools with no distinct job left after Burp MCP and the lean roster (ZAP, mitmproxy, nikto, hydra,
+  dalfox, jwt_tool, mythril, Wake, surya, ItyFuzz, Certora, standalone gadget finders, and others).
+
 ## [1.2.0] — 2026-09-29
 
 ### Added

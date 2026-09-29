@@ -58,12 +58,10 @@ that coverage actually reached the interesting code at all.
 
 `AFL++` (`local-tooling.md` 3.4) as the default coverage-guided fuzzer for C/C++ targets;
 `libFuzzer` when the target already builds with LLVM and in-process fuzzing is viable (much faster
-iteration than AFL's fork-server model for small, fast functions). `honggfuzz` as an alternative
-worth running in parallel on the same harness — different mutation strategies find different bugs,
-and running two fuzzers against the same target for the same wall-clock budget often beats doubling
-one fuzzer's time. `boofuzz` for protocol/network fuzzing where a structured, stateful sequence of
-messages matters more than raw byte mutation. `cargo fuzz`/Go's native fuzzing for Rust/Go targets
-respectively, keeping the harness in the target's own idiomatic tooling rather than forcing a C-style
+iteration than AFL's fork-server model for small, fast functions). When the interesting parsing
+sits behind a handshake or a stateful message sequence, harness the post-handshake parse function
+directly rather than fuzzing the network layer from outside. `cargo fuzz`/Go's native fuzzing for
+Rust/Go targets respectively, keeping the harness in the target's own idiomatic tooling rather than forcing a C-style
 harness onto a memory-safe language (the more valuable bugs there are in `unsafe{}`/`cgo` boundaries
 — hand those a purpose-built harness that isolates the boundary itself).
 
