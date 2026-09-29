@@ -18,6 +18,12 @@ kb/
   README.md       this file
 ```
 
+What `sieve kb writeback` writes is decided by the machine, not by a finding file's own `status:` line
+(`references/validation.md`): a **confirmed** tier becomes a `confirmed` card, a **trace-verified** one a
+`curated` card, a **rejected** candidate becomes a *false-positive lesson* (what looked real, and the guard or
+missing harm that showed it wasn't), and every frontier row closed `dead` becomes a dead-end lesson. `sieve kb
+prime` reads those lessons back before the next hunt in the same class.
+
 `sieve kb index` rebuilds the local search index from `kb/seed/cards/` plus your own vault; nothing
 here is the source of truth for search results once your own vault has real cards in it. Full
 workflow — precedent, lessons, the vault — in `references/knowledge.md`.

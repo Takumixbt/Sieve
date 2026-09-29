@@ -102,7 +102,8 @@ def render_finding(f: Dict[str, Any], n: int, a: Optional[Dict[str, Any]] = None
 def _validation_line(a: Dict[str, Any]) -> str:
     bits = []
     if a["tier"] == "confirmed":
-        bits.append(f"executed {a.get('repeat') or '?'}× with a negative control ({a.get('oracle', 'oracle')})")
+        ctl = " + ".join(a.get("control_kinds") or []) or "control"
+        bits.append(f"executed {a.get('repeat') or '?'}× ({a.get('oracle', 'oracle')}); negative control: {ctl}")
     elif a["tier"] == "trace-verified":
         bits.append("trace-verified — " + ("; ".join(a["why"]) or "no executable proof"))
     bits.append("citations re-read by code" if a["cites"] == "pass" else f"citations: {a['cites']}")

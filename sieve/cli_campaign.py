@@ -248,6 +248,9 @@ def cmd_run(args: argparse.Namespace) -> int:
                     slug = "roaming" if n.get("check") == "rollcall-roaming" else n["vars"].get("slug")
                     done = os.path.isfile(p) and B.done_marker(util.read_text(p))
                     if not (done and done["agent"] == slug and done["pass"] == loop):
+                        if os.path.isfile(p):
+                            print(f"  … {n['id']}: output file exists but has no `SIEVE-AGENT-DONE {slug} pass {loop}` line — "
+                                  f"still being written, or the agent crashed (a wrong pass number in that line counts as missing)")
                         continue                          # still writing (no DONE line yet)
                 elif not all(os.path.exists(eng.path(o["path"])) for o in n["outputs"]) and n.get("check") != "frontier-drained":
                     continue

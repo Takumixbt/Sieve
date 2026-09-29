@@ -11,6 +11,8 @@ it degrades when something is missing. Read this once per new environment, not p
   `setup.md` has the exact per-OS commands).
 - **A background/parallel-agent dispatch capability** (Claude Code's `Task`/`Agent` tool, or the
   harness's equivalent). Without it, see "No-fanout" below.
+- **A POSIX `sh`** (the proof runner executes PoC commands under `/bin/sh -c`) and **`git` or `patch`** (the
+  strongest negative control re-runs a PoC against a patched copy of the target).
 
 ## The real security tools
 
@@ -34,18 +36,20 @@ produce a fork-test proof for Gate 6.
 
 ## No-fanout (the harness can't dispatch parallel sub-agents)
 
-Run the roster **sequentially** instead of in parallel, and persist state to `.sieve/` continuously
-— each agent writes its raw findings to disk as it finishes, so a context reset loses nothing and
-`sieve --continue` resumes cleanly. `.sieve/`, not the context window, is the source of truth.
-Chunk a large target by subsystem rather than trying to hold the whole thing in one context.
+Run the roster **sequentially** instead of in parallel: `sieve dispatch --sequential` hands out one agent
+at a time (in roster order) and `sieve campaign next --only <node>` does the same for one campaign node. State is
+persisted to `.sieve/` continuously — each agent writes its output to disk as it finishes, so a context reset loses
+nothing and `sieve status` (or `sieve campaign status`) resumes cleanly. `.sieve/`, not the context window, is the
+source of truth. Chunk a large target by subsystem rather than trying to hold the whole thing in one context.
 
 ## No Stop-hook support (a harness other than Claude Code)
 
 The persistence doctrine in `references/shared-rules.md` still applies — it's a discipline, not
 only a mechanism. Without the hook, treat `sieve status`'s frontier count as the thing you check
-before ending any turn, manually, every time. `sieve run` (if the harness supports a headless
-re-invoke loop) can substitute for hook-enforced persistence by re-entering the agent until the
-frontier drains.
+before ending any turn, manually, every time. In a campaign, `sieve campaign status` plays the same
+role: the turn is not over while it names a `NEXT` that is not `Campaign complete`. A harness with a headless
+re-invoke loop can substitute for hook-enforced persistence by re-entering the agent until `sieve status`
+reports the engagement done.
 
 ## Capability probing at preflight
 
@@ -57,7 +61,9 @@ Before dispatching anyone, confirm and print:
 [ ] fanout capability detected (parallel Task/Agent dispatch, or sequential fallback above)
 [ ] tool roster probed (sieve doctor) — absences recorded as coverage-debt
 [ ] Stop hook registered (sieve hooks status) — or the manual-check fallback above is in effect
-[ ] shared-rules.md, methodology.md, judging.md, local-tooling.md actually read this turn
+[ ] proof runner available: /bin/sh, plus git (or patch) for `sieve prove run --control-patch`
+[ ] shared-rules.md, methodology.md, hypothesis-craft.md, judging.md, validation.md, local-tooling.md actually read this turn
+[ ] running the campaign? `sieve campaign validate` clean and `sieve campaign init --profile <p>` printed its node count
 ```
 
 An unprinted checklist is an unrun one — this is the same discipline `SKILL.md`'s Turn-based
@@ -66,6 +72,8 @@ orchestration exists to enforce, applied to preflight specifically.
 ## Network egress
 
 Sieve's own network calls are limited to `sieve kb` (Solodit, OSV, optionally NVD — all through the
-rate-limited broker in `sieve/kb_net.py`) and the version-agnostic tools it shells out to. If egress
+rate-limited broker in `sieve/kb_net.py`), the version-agnostic tools it shells out to, and the PoC commands
+`sieve prove run` executes — which may only talk to hosts the scope fence lists, and only when
+`rules.active_testing` is true (`references/validation.md`). The campaign dashboard listens on `127.0.0.1` only. If egress
 is sandboxed or proxied, `sieve kb doctor --live` confirms reachability without spending a real
 query; `SIEVE_OFFLINE=1` disables all outbound KB calls and falls back to local cards only.

@@ -34,11 +34,17 @@ kill it. Fail any gate → **REJECT** or **DEMOTE** to a lead; later gates are n
    GATE 5 ── Impact ── material harm to an identifiable victim? ──► REJECT / DEMOTE
         │ clears
         ▼
-   GATE 6 ── Proof ── PoC or exact re-read trace exists? ───────► ships as CONFIRMED,
-        │                                                          or a labeled strong lead (F9)
+   GATE 6 ── Proof ── a PoC the MACHINE re-ran, with a negative control? ──► CONFIRMED,
+        │                                                          or trace-verified / a labeled strong lead
         ▼
-   CONFIRMED → sieve prove record → verified, ships in the report
+   CONFIRMED → sieve prove run + sieve judge --verdict confirmed → the report prints the computed tier
 ```
+
+**How this file meets the CLI.** Gates 0–5 are a reasoning task: a verifier (never the discoverer) runs them and files
+the result — `sieve judge <id> --verdict cleared|demoted|rejected --verifier <name> --reason ...`. Complex findings need
+two distinct verifiers and any disagreement demotes (below). **Gate 6 is not a reasoning task — it is a machine check**:
+`sieve prove run` executes the proof, and `sieve judge --verdict confirmed` is refused unless a sealed, passing,
+negative-controlled receipt exists. `validation.md` is the doctrine; this file stays the definition of what each gate asks.
 
 ## Gate 0 — the cheap pre-filter
 
@@ -152,28 +158,28 @@ Prove material harm to an identifiable victim.
 
 ## Gate 6 — Proof
 
-A finding that clears Gates 1–5 still needs a receipt before it ships (`sieve prove record`):
+A finding that clears Gates 0–5 needs a proof the *tool* accepts before it ships (`validation.md`):
 
-- **CRITICAL/HIGH with a runnable PoC** (a fork test, a live request/response pair, a crash under
-  a sanitizer, a Frida trace) → **CONFIRMED**, proof-backed.
-- **CRITICAL/HIGH with no runnable PoC available** (the harness can't execute code, the target
-  can't be safely tested live) → ships as a **strong lead**, explicitly labeled "trace-verified,
-  PoC pending," with the exact PoC that *would* confirm it named. Never presented as a proven
-  critical — this is the honest floor when execution isn't available, not a way to skip proving.
-- **MEDIUM/LOW** — a complete, re-read code trace is acceptable proof on its own.
+- **CRITICAL/HIGH/MEDIUM with a runnable PoC** (a fork test, a replayable request pair, a crash under a sanitizer,
+  a Frida trace) → `sieve prove run` executes it (repeated, stable, with a negative control) →
+  `sieve judge --verdict confirmed` is accepted → **CONFIRMED**.
+- **CRITICAL/HIGH/MEDIUM with no runnable PoC available** (the harness can't execute code, the target can't be
+  safely tested live) → `sieve judge --verdict trace-only --reason "why it cannot be run"` → ships as
+  **trace-verified**, explicitly labelled, with the exact PoC that *would* confirm it named. Never presented as a
+  proven critical — this is the honest floor when execution isn't available, not a way to skip proving. The reason
+  is written to the report's Coverage section.
+- **LOW/INFORMATIONAL** — a complete, re-read code trace (citations verified by code) is acceptable on its own and
+  prints as trace-verified.
 
-**Attempt a negative PoC alongside the positive one wherever a runnable PoC is possible at all** —
-a second test that asserts the claimed-safe condition and expects the bug to *not* fire under it. A
-negative PoC that unexpectedly succeeds (the bug fails to trigger under a condition the finding
-claimed was irrelevant) is not a formality that failed; it's active evidence the finding's mental
-model of the bug is wrong, and the finding goes back to Gate 1, not straight to CONFIRMED with a
-footnote. This catches the specific failure mode Gate 1's refutation pass can miss: a PoC that
-happens to work for a reason *other than* the one the finding claims (the "right answer, wrong
-mechanism" trap), which a positive PoC alone can never surface since it only ever tests the
-condition the discoverer already believed in.
+**The negative PoC is no longer a courtesy — the tool requires it.** `sieve prove run` needs a control and fails a
+proof whose control also shows the exploit signature (`VACUOUS`). The strongest control is a **mutation**: the same
+command re-run against a copy of the target with the fix applied (`--control-patch fix.diff`) — a PoC that "works" for
+a reason *other than* the one the finding claims (the "right answer, wrong mechanism" trap), or that ignores the target
+entirely, cannot stop when the code is patched, so it fails. A control that unexpectedly matches is not a formality that
+failed; it's active evidence the finding's mental model of the bug is wrong, and the finding goes back to Gate 1.
 
-The report says which findings are PoC-proven and which are trace-only, and whether a negative PoC
-was attempted and what it showed. Never disguise the difference.
+The report prints which findings are confirmed, which are trace-verified, and — for each confirmed one — the oracle, the
+control kind, and how many times it ran. Never disguise the difference; the tool will not let you.
 
 ## Confidence
 

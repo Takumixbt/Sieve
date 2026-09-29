@@ -8,28 +8,36 @@ block, never silently dropped — and it may never print as if it printed more. 
 `sieve report`'s output always states exactly how many finding files it could not read, right next
 to the summary table.
 
-## The finding file — written by the agent, not generated
+## The finding file — written by `sieve merge`, judged by `sieve judge`
 
-Every finding or lead is its own file: `.sieve/findings/<id>.md`, YAML frontmatter plus a markdown
-body. `sieve report` only reads, dedupes, sorts, and counts these — it never computes a severity,
-confidence, or verdict. If you find yourself wanting the tooling to decide a verdict, that decision
-belongs in `judging.md`, done by an agent, not in this file's script.
+Every finding or lead is its own file: `.sieve/findings/F-NNN.md`, YAML frontmatter plus a markdown body.
+Agents write raw FINDING / LEAD / HYPOTHESIS *blocks* (`shared-rules.md`); `sieve merge` turns them into these files
+(deduped by `group_key`, ids stable across re-merges); `sieve judge` and `sieve prove` add the verdict and the receipts.
+`sieve report` only reads, sorts, counts and prints — and for **what is allowed to be called confirmed it does not read
+the file's `status:` line at all**: it recomputes the tier from the sealed receipts (`validation.md`). If you find
+yourself wanting the tooling to decide a *severity* or a *root cause*, that is `judging.md`, done by a verifier.
 
 ```markdown
 ---
 id: F-001
-kind: FINDING                    # FINDING | LEAD | HYPOTHESIS — shared-rules.md
+kind: FINDING                    # FINDING | LEAD  (HYPOTHESIS blocks live in findings/hypotheses.json, not here)
 pack: web3                       # web3 | web | binary
 class: oracle-manipulation       # the bug-class label — reuse an existing one for the same shape
 vector: W3-ORC-01                # the packs/<pack>/vectors/*.md card id, if one applies
 component: Vault.rebalance
 group_key: Vault|rebalance|oracle-manipulation   # dedup key across agents and passes
-severity: high                   # critical | high | medium | low | informational
-status: confirmed                # confirmed | trace-verified | demoted | rejected
-confidence: 90                   # judging.md's arithmetic — start at 100, deduct per rule
-gate: "1,2,3,4,5,6 clear"        # which gates it passed, for the record
+title: oracle-manipulation — Vault.rebalance
+severity: high                   # the verifier's, once judged (the discoverer's before)
+status: candidate                # candidate | lead | cleared | confirmed | trace-verified | demoted | rejected
+                                 #   informational only — the REPORT recomputes the tier from receipts
+confidence: 90                   # judging.md's arithmetic — set by `sieve judge`, threshold 75
+found_by: [web3/access-control-agent, web3/math-precision-agent]   # discoverers (a verifier may not be one)
+passes: [1, 2]
+complexity: straightforward      # straightforward | complex (complex needs two verifiers per stage)
+validation: confirmed            # last computed tier (informational; `sieve verify` refreshes it)
+demoted_by: [cite-fail]          # why the merge kept a FINDING block as a LEAD, if it did
+claim_hash: 4f9a1c0d22b7e610     # hash of the claim text — a later edit marks receipts stale
 cwe: CWE-841                     # web / binary; web3 uses `vector` instead
-stack: solidity/lending
 tell: 'getReserves\('            # a grep-able signature for the learning loop (knowledge.md's write-back section)
 source_ref: "solodit:abc123"     # a KB precedent that helped, if any (knowledge.md)
 ---
@@ -41,29 +49,36 @@ One or two sentences — the code-level defect.
 caller -> function -> state change -> impact, with concrete values.
 
 ## Proof
-The exact evidence: a fork-test name, a request/response pair, a crash trace. This is what
-`sieve prove record` files a receipt for — the body here is the human-readable version.
+The agent's evidence: a fork-test name, a request/response pair, a crash trace, with `file:line` citations. The
+machine-run proof is separate: `sieve prove run` writes sealed receipts to `.sieve/proofs/F-001--exec-*.json`.
 
 ## Remediation
 The smallest change that eliminates the defect.
+
+## Machine checks (`sieve merge`)      # present only when the merge demoted or annotated the block
 ```
 
 A **LEAD** carries `code_smells:` and a description of what remains unverified instead of a full
-write-up; no confidence score, no Fix section.
+write-up; no confidence score, no Fix section. A LEAD becomes a candidate only when a later pass raises the same
+`group_key` again as a proper FINDING.
 
 ## What `sieve report` does, mechanically
 
-1. Reads every `findings/*.md`. A file missing required frontmatter is reported broken, not
+1. Reads every `findings/F-*.md`. A file missing required frontmatter is reported broken, not
    dropped from the count silently.
-2. **Dedup by `group_key`** — one winner per key: strongest `kind` (FINDING > LEAD > HYPOTHESIS),
-   then highest `confidence`.
-3. **Sort** — by severity, then confidence, descending.
-4. **The size trigger** — above 20 findings, the terminal-facing text shows the top 3 plus the full
+2. **Computes each finding's tier** (`validate.assess`): `confirmed`, `trace-verified`, `unvalidated`, `stale`, `tampered`,
+   `rejected` or `lead` — from the verdict in `judged.json` (sealed), the citation receipt, the exec receipts and the ledger.
+   A finding whose file says `status: confirmed` but whose tier is lower is printed at the lower tier with a warning.
+3. **Dedup by `group_key`** — one winner per key: strongest `kind` (FINDING > LEAD), then highest `confidence`.
+4. **Sort** — by the verifier's severity, then confidence, descending.
+5. **Sections**: *Findings* (confirmed only, each with a Validation line: oracle, repeats, control kind, measured values,
+   verifiers), *Trace-verified findings*, *Unvalidated candidates — not confirmed* (with the reason), *Leads*, *Coverage*.
+6. **The size trigger** — above 20 confirmed findings, the terminal-facing text shows the top 3 plus the full
    count and the path to the complete file; `report/report.md` itself always holds everything.
-   Leads are never counted toward this trigger.
-5. **Coverage section** — frontier stats (`sieve frontier stats`) and any recorded phase waivers
-   (`.sieve/waivers.tsv`), so the report states what was skipped and why in the same document as
-   what was found.
+7. **Coverage section** — frontier stats, validation stats (receipts, ledger INTACT/TAMPERED), and every recorded waiver
+   (`.sieve/waivers.tsv`: phases entered early, agents lost or below contract, proofs accepted as trace-only, campaign nodes
+   skipped) — so the report states what was skipped and why in the same document as what was found.
+8. **A tamper banner** at the top if the proof ledger fails its chain/MAC/hash check.
 
 ## Architecture diagram
 

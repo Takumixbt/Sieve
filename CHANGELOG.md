@@ -3,37 +3,45 @@
 All notable changes to Sieve are documented here. Versioning follows
 [Semantic Versioning](https://semver.org/).
 
-## [1.0.0] — 2026-09-29
+## [1.4.0] — 2026-09-29
 
 ### Added
-- Initial release. Three packs — web3, web, binary/mobile — each with a full agent roster
-  (`agents/README.md`), a fast-recall vector-card catalog (`packs/<pack>/vectors/*.md`), and
-  pack-specific gate additions (`packs/<pack>/judging.md`).
-- The persistence engine: `.sieve/frontier.tsv` as the engagement's work queue, the stuck ladder
-  (`sieve ladder`), and a Claude Code Stop hook (`sieve hooks install`) that blocks the agent from
-  ending a turn while work remains — enforced by real budgets (max blocks, no-progress release,
-  wall-clock cap), never an unbounded loop.
-- The knowledge base: local markdown cards with YAML frontmatter, a SQLite full-text index, and a
-  rate-limited broker in front of Solodit and OSV so twelve parallel agents never exceed either
-  API's real rate limit. `sieve kb writeback` grows the local store from every engagement's
-  confirmed findings.
-- Mechanical x-ray enumerators for all three packs (`sieve xray web3|web|git`) — discovery, nSLOC,
-  test inventory, and (web3) a grep-only entry-point scan generalized across Solidity, Vyper,
-  Move, Anchor, and Cairo. Deliberately does not classify or parse semantics — that stays the
-  agent's job, corroborated by real tools (Slither/Aderyn) rather than a hand-rolled parser.
-- The report assembler (`sieve report`) — dedup, sort, and count over agent-written finding files;
-  never computes a verdict or confidence itself.
-- `references/local-tooling.md` — the real tool roster and Burp extension list per pack.
-- Vendored `scripts/generate_svg.py` (MIT) for the architecture diagram — attribution in the
-  file's own header and in `CREDITS.md`.
+- **Deterministic validation** (`references/validation.md`, `sieve/validate.py`, `sieve/judging.py`, `sieve/cites.py`) —
+  a finding is CONFIRMED by a machine, not by narration. `sieve prove run` executes the PoC N times, requires a stable
+  exploit signature and a **negative control** that stays silent (ideally `--control-patch`: the *same command* re-run against a
+  patched copy of the target — a PoC that ignores the target cannot stop when the code is fixed), refuses echo-only "PoCs",
+  destructive verbs, literal credentials and out-of-fence traffic, pins the PoC and cited-source hashes, and writes an
+  HMAC-sealed receipt to a hash-chained ledger. `sieve verify [--rerun]` re-reads every citation by code, detects drift
+  (`stale`), regressions and tampering. `sieve judge` grew stages (`cleared` for Gates 0-5, `confirmed`/`trace-only` for
+  Gate 6), refuses a verifier who discovered the finding, enforces two independent verifiers for complex findings (disagreement
+  demotes), the confidence threshold, and refuses `confirmed` without a passing receipt.
+- **The report prints the machine's tier** (confirmed · trace-verified · unvalidated · stale · tampered · rejected · lead)
+  and ignores an agent's own `status:` line; each confirmed finding shows its oracle, repeats, control kind and measured values.
+- **The hunt pipeline commands the docs always promised** — `sieve bundle` (prints every bundle's size), `dispatch`
+  (verifies bundle integrity, `--sequential` for no-fanout), `rollcall` (finished? quotas? markers?), `merge` (deterministic
+  checks; demotes proofless / hedged / mis-cited FINDINGs to LEADs, never promotes), `absorb` (frontier rows close only with
+  receipts), `frontier seed`, plus the roaming pass (`bundle --roaming`). Step order is enforced.
+- **The campaign engine** (`references/campaign.md`, `campaigns/`, `sieve campaign …`) — an ultrafuzz-shaped, topology-driven
+  static-analysis campaign: nodes of kind meta / agentic / reference, `repeat` and `matrix` expansion, profiles
+  (smoke/default/exhaustive), exactly one primary output per node, versioned artifact contracts validated before a node is done,
+  a threat-model → goal-plan chain, eight independent invariant lenses fanned in, a dynamic strategy node, looped roster
+  hunts, a triage panel with quorum and a deterministic reportability gate, machine-run proofs, a differential-reference
+  independence audit, resumable state with stale-artifact detection, and a loopback dashboard. ~55 static anti-pattern rules
+  (`campaigns/rules/`) feed the frontier.
+- `sieve lint` now validates the campaign topology for every profile, every prompt, every rule regex and every contract's own
+  example, and that each agent's `name:` matches its file.
 
-### Design notes for future maintainers
-- An earlier iteration of this skill included a hand-rolled Solidity structural parser and a
-  multi-framework web route scanner. Both were removed (v1.0.0, pre-release) after review: they
-  re-implemented what Slither/Aderyn and Burp/subfinder/katana already do, worse. If you're
-  tempted to rebuild either, read `CREDITS.md` and `references/local-tooling.md` first — the fix
-  for "the x-ray isn't deep enough" is almost always "wire in the real tool's output," not "write
-  more Python to replace it."
+### Changed
+- `sieve prove record` is deprecated: it files an *asserted* note that counts for nothing. Use `sieve prove run` / `prove add`.
+- `sieve kb writeback` keys off the computed tier (confirmed → `confirmed` card; trace-verified → `curated`) and turns rejected
+  candidates into false-positive lessons.
+- The Stop hook and `sieve status` are campaign-aware; the persistence progress hash includes the campaign directory.
+- `packs/web/agents/ai-native-appsec.md` renamed to `ai-native-appsec-agent.md` to match its `name:` (the roster keys on it).
+
+### Fixed
+- The state machine pointed at commands that did not exist (`bundle`, `dispatch`, `rollcall`, `absorb`, `merge`, `sieve map`,
+  `frontier seed`, `sieve run`) and a never-written `sieve.cli_findings`; `sieve pass` skipped the bundle step.
+- The report counted every FINDING file as confirmed regardless of evidence.
 
 ## [1.3.0] — 2026-09-29
 
@@ -157,3 +165,35 @@ All notable changes to Sieve are documented here. Versioning follows
   repository's git history for anyone extending `sieve/`.)
 - Inline attribution scattered through the working reference files. Methodology and tooling
   lineage now live in one place: `CREDITS.md`.
+
+## [1.0.0] — 2026-09-29
+
+### Added
+- Initial release. Three packs — web3, web, binary/mobile — each with a full agent roster
+  (`agents/README.md`), a fast-recall vector-card catalog (`packs/<pack>/vectors/*.md`), and
+  pack-specific gate additions (`packs/<pack>/judging.md`).
+- The persistence engine: `.sieve/frontier.tsv` as the engagement's work queue, the stuck ladder
+  (`sieve ladder`), and a Claude Code Stop hook (`sieve hooks install`) that blocks the agent from
+  ending a turn while work remains — enforced by real budgets (max blocks, no-progress release,
+  wall-clock cap), never an unbounded loop.
+- The knowledge base: local markdown cards with YAML frontmatter, a SQLite full-text index, and a
+  rate-limited broker in front of Solodit and OSV so twelve parallel agents never exceed either
+  API's real rate limit. `sieve kb writeback` grows the local store from every engagement's
+  confirmed findings.
+- Mechanical x-ray enumerators for all three packs (`sieve xray web3|web|git`) — discovery, nSLOC,
+  test inventory, and (web3) a grep-only entry-point scan generalized across Solidity, Vyper,
+  Move, Anchor, and Cairo. Deliberately does not classify or parse semantics — that stays the
+  agent's job, corroborated by real tools (Slither/Aderyn) rather than a hand-rolled parser.
+- The report assembler (`sieve report`) — dedup, sort, and count over agent-written finding files;
+  never computes a verdict or confidence itself.
+- `references/local-tooling.md` — the real tool roster and Burp extension list per pack.
+- Vendored `scripts/generate_svg.py` (MIT) for the architecture diagram — attribution in the
+  file's own header and in `CREDITS.md`.
+
+### Design notes for future maintainers
+- An earlier iteration of this skill included a hand-rolled Solidity structural parser and a
+  multi-framework web route scanner. Both were removed (v1.0.0, pre-release) after review: they
+  re-implemented what Slither/Aderyn and Burp/subfinder/katana already do, worse. If you're
+  tempted to rebuild either, read `CREDITS.md` and `references/local-tooling.md` first — the fix
+  for "the x-ray isn't deep enough" is almost always "wire in the real tool's output," not "write
+  more Python to replace it."

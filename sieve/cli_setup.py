@@ -127,14 +127,15 @@ def cmd_lint(args: argparse.Namespace) -> int:
 
     from .cli_campaign import lint_default_topology
     problems += lint_default_topology()
+    problems += lint_doc_commands()
 
     if problems:
         print(f"{len(problems)} problem(s):")
         for p in problems:
             print(f"  - {p}")
         return 1
-    print(f"clean: {len(cards)} vector card(s), all agent files, pack judging.md, and the campaign topology "
-          f"(every profile, prompts, rules, contracts) check out")
+    print(f"clean: {len(cards)} vector card(s), all agent files, pack judging.md, the campaign topology "
+          f"(every profile, prompts, rules, contracts), and every `sieve <command>` the docs name check out")
     return 0
 
 
@@ -160,3 +161,55 @@ def register(sub: Any) -> None:
 
     p = sub.add_parser("lint", help="validate vector cards and agent frontmatter")
     p.set_defaults(func=cmd_lint)
+
+
+# ---------------------------------------------------------------- docs must only name commands that exist
+
+_CMD_RE = None
+
+
+def _command_tree() -> "dict[str, set[str]]":
+    """{top-level command: {subcommands}} taken from the live argparse tree."""
+    import argparse
+    from .main import build_parser
+    parser = build_parser()
+    tree: "dict[str, set[str]]" = {}
+    for act in parser._actions:
+        if isinstance(act, argparse._SubParsersAction):
+            for name, sp in act.choices.items():
+                subs: "set[str]" = set()
+                for a2 in sp._actions:
+                    if isinstance(a2, argparse._SubParsersAction):
+                        subs = set(a2.choices)
+                tree[name] = subs
+    return tree
+
+
+def lint_doc_commands() -> "List[str]":
+    """Every `sieve <cmd> [<sub>]` the docs and prompts tell an agent to run must exist. This is the check that
+    would have caught a state machine pointing at commands nobody had written."""
+    import re
+    tree = _command_tree()
+    rx = re.compile(r"(?:(?<=`)|(?m:^[ \t]*(?:\$[ \t]*)?))sieve[ \t]+([a-z][a-z0-9-]*)(?:[ \t]+([a-z][a-z0-9-]*))?")
+    files: List[str] = []
+    root = repo_root()
+    for pat in ("*.md", "references/*.md", "agents/*.md", "packs/*/*.md", "packs/*/agents/*.md", "packs/*/vectors/*.md",
+                "campaigns/prompts/*.md", "kb/*.md"):
+        files += glob.glob(os.path.join(root, pat))
+    files += [os.path.join(root, "sieve.yaml")]
+    problems: List[str] = []
+    for f in sorted(set(files)):
+        if os.path.basename(f) == "CHANGELOG.md":
+            continue                                 # history legitimately names retired commands
+        text = util.read_text(f)
+        for m in rx.finditer(text):
+            top, sub = m.group(1), m.group(2)
+            line = text.count("\n", 0, m.start()) + 1
+            rel = os.path.relpath(f, root)
+            if top not in tree:
+                problems.append(f"{rel}:{line}: `sieve {top}` is not a command")
+            elif tree[top] and sub and sub not in tree[top]:
+                after = text[m.end():m.end() + 1]
+                if after in ("", " ", "\n", "`", ")", ".", ",", "-", "|", ";", "\t", "]", ":", "="):
+                    problems.append(f"{rel}:{line}: `sieve {top} {sub}` is not a subcommand (has: {', '.join(sorted(tree[top]))})")
+    return problems

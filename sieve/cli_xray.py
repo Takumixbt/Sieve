@@ -78,6 +78,10 @@ def cmd_map(args: argparse.Namespace) -> int:
         raise SystemExit(f"sieve map: write {arch} first (see references/xray.md's architecture.json format)")
     import subprocess
     import sys
+    arch_data = util.read_json(arch, None)
+    if not isinstance(arch_data, dict) or not arch_data.get("nodes"):
+        raise SystemExit(f"sieve xray map: {arch} has no `nodes` — draw at least the contracts/services/components "
+                         f"that hold value or gate access (references/report-formatting.md, Architecture diagram)")
     script = os.path.join(os.path.dirname(__file__), os.pardir, "scripts", "generate_svg.py")
     svg = eng.path("xray", "architecture.svg")
     rc = subprocess.call([sys.executable, script, arch, svg])

@@ -30,9 +30,9 @@ applies. **Think for yourself on the open ground; follow the skill exactly on th
 | Bright lines — comply exactly, never "improve" | Open ground — your judgment, your creativity |
 |---|---|
 | The scope fence (`.sieve/case.md`) | Which hypotheses to form, and how strange they're allowed to be |
-| Cite-or-drop: every citation re-read/re-sent this turn | Which invariants matter and how to derive them (`hypothesis-craft.md` §2) |
-| Proof-or-lead: a FINDING without `proof:` is a LEAD | Which lens, technique, or asymmetry to apply next (§3) |
-| Discoverer ≠ verifier; the gates run in order (`judging.md`) | Which tools to combine, in what order, how to read their output |
+| Cite-or-drop: every citation re-read/re-sent this turn — and re-read again **by code** at `sieve merge` | Which invariants matter and how to derive them (`hypothesis-craft.md` §2) |
+| Proof-or-lead: a FINDING without `proof:` is a LEAD (the merge demotes it); **confirmed is computed** from a re-executed, negative-controlled proof (`validation.md`) | Which lens, technique, or asymmetry to apply next (§3) |
+| Discoverer ≠ verifier; the gates run in order (`judging.md`; `sieve judge` refuses a self-verifier) | Which tools to combine, in what order, how to read their output |
 | Read-only inside the target unless you are the prover | Which chains to try, which precedents to chase, which layer to attack |
 | Dead ends need receipts; clean claims need an inversion pass | How to interpret ambiguous evidence — and to say so out loud |
 | Report what you did *not* cover, by name | When to go deeper on a promising lead, and how far |
@@ -74,10 +74,13 @@ is a correct statement; filling the gap with a plausible answer is not.
 
 Hunting actors never create, edit, or delete a file inside the audited repository or on the live
 target — not a PoC, not a test, not a scratch note, not one you intend to delete afterward. Write
-proof-of-concept code in your own scratchpad, or quote it as text in the finding. A **prover**
-(dispatched separately, after a finding clears Gates 1–3) is the one role allowed to write a PoC
-file, and only inside a sandboxed fork/test environment the scope card names — never against the
-live target unless `rules.active_testing` on the scope card says so.
+proof-of-concept code in your own scratchpad, or quote it as text in the finding. **The one exception is
+your own output file**: the path your bundle's OUTPUT CONTRACT names, under `.sieve/raw/` (engagement
+state, git-ignored, not part of the target's code). A **prover** (dispatched separately, after a finding
+clears Gates 0–5) is the one role allowed to write a PoC file, and only inside a sandboxed fork/test
+environment the scope card names — never against the live target unless `rules.active_testing` on the
+scope card says so. `sieve prove run` runs that PoC for you and refuses destructive verbs, literal
+credentials, and any traffic the scope fence does not allow (`validation.md`).
 
 ## Persistence — read this before you decide anything is a dead end
 
