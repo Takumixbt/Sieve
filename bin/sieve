@@ -1,0 +1,17 @@
+#!/usr/bin/env sh
+# Sieve launcher. Resolves symlinks so it works from ~/.local/bin, then runs the package.
+SELF="$0"
+while [ -h "$SELF" ]; do
+  DIR="$(cd "$(dirname "$SELF")" && pwd)"
+  SELF="$(readlink "$SELF")"
+  case "$SELF" in /*) ;; *) SELF="$DIR/$SELF" ;; esac
+done
+HERE="$(cd "$(dirname "$SELF")" && pwd)"
+SIEVE_HOME="${SIEVE_HOME:-$(cd "$HERE/.." && pwd)}"
+export SIEVE_HOME
+PY="${SIEVE_PYTHON:-python3}"
+if ! command -v "$PY" >/dev/null 2>&1; then
+  echo "sieve: python3 not found (need Python >= 3.9)" >&2
+  exit 127
+fi
+PYTHONPATH="$SIEVE_HOME${PYTHONPATH:+:$PYTHONPATH}" exec "$PY" -m sieve "$@"

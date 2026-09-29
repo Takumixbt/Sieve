@@ -1,0 +1,76 @@
+# Sieve defaults. Override per user in ~/.sieve/sieve.yaml and per engagement in <target>/.sieve/sieve.yaml.
+# Later files win; maps are merged key by key. Paths accept ~ and $ENV_VARS.
+version: 1
+
+user_home: ~/.sieve
+
+# ---------------------------------------------------------------- knowledge base
+kb:
+  # Plain markdown cards with YAML frontmatter. Obsidian can open this folder, but nothing requires it.
+  vault: ~/.sieve/kb
+  index: ~/.sieve/index.db
+  sources:
+    seed:
+      enabled: true            # cards and datasets shipped in kb/seed
+    solodit:
+      enabled: true            # needs an API key: solodit.cyfrin.io -> profile -> API keys
+      endpoint: https://solodit.cyfrin.io/api/v1/solodit/findings
+      api_key_env: CYFRIN_API_KEY
+      rate_limit: {requests: 20, per_seconds: 60}
+      cache_ttl: {search: 300, finding: 3600}
+      page_size: 20
+    osv:
+      enabled: true            # library/CVE lookups by package + version, no key needed
+      endpoint: https://api.osv.dev/v1/query
+      rate_limit: {requests: 60, per_seconds: 60}
+      cache_ttl: {search: 3600}
+    nvd:
+      enabled: false
+      endpoint: https://services.nvd.nist.gov/rest/json/cves/2.0
+      api_key_env: NVD_API_KEY
+      rate_limit: {requests: 5, per_seconds: 30}
+      cache_ttl: {search: 3600}
+  writeback:
+    curated: true              # precedents an agent fetched AND used become cards (status: curated)
+    confirmed: true            # own gate-passed findings become cards (status: confirmed)
+    min_confidence: 75
+    sanitize: true             # refuse to write secrets/keys/PII into cards
+
+# ---------------------------------------------------------------- persistence (anti-laziness)
+persistence:
+  min_dead_attempts: 3         # a dead end needs at least this many logged attempts...
+  min_distinct_rungs: 3        # ...spread over at least this many different ladder rungs
+  max_blocks: 60               # hard cap on Stop-hook blocks per engagement
+  no_progress_release: 4       # release after this many consecutive blocks with zero progress
+  max_minutes: 240             # wall-clock budget for the engagement
+  wait_release_minutes: 45     # allowed idle time while background agents run
+  block_permission_endings: true
+
+# ---------------------------------------------------------------- audit behaviour
+audit:
+  passes: 3
+  max_passes: 10
+  confidence_threshold: 75
+  size_trigger: 20             # more findings than this: terminal prints top 3 + the report path
+  hypothesis_quota:
+    min_total: 8               # per agent output file
+    min_techniques: 4          # distinct ideation techniques (core/mindset.md)
+    min_moonshots: 1
+  markers:                     # mandatory reasoning markers in agent output (core/sop.md)
+    feynman: {base: 3, per_kloc: 2, cap: 40}
+    socratic: {base: 2, per_kloc: 1, cap: 25}
+    inversion: {base: 3, per_kloc: 2, cap: 40}
+
+# ---------------------------------------------------------------- outputs
+report:
+  formats: [md, html]          # add pdf when Chromium is available (sieve doctor shows this)
+  classification: Confidential
+  author: ""
+  organisation: ""
+  severity_basis:
+    web3: impact-likelihood
+    web: cvss
+    binary: cvss
+
+map:
+  overlay: true                # colour nodes by audit coverage and badge them with findings
