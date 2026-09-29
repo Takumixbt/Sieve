@@ -12,7 +12,7 @@
 # Sieve
 
 A security-audit skill for **any** target — a smart-contract protocol, a web app or API, or a
-native binary/mobile app — built to be paired with real tooling.Sieve doesn't
+native binary/mobile app — built to be paired with real tooling. Sieve doesn't
 scan, crawl, fuzz, or disassemble anything itself: it teaches an agent which real tool to reach for — see
 [`references/local-tooling.md`](references/local-tooling.md)), how to read its output, and the
 discipline — a six-gate judge, evidence-or-silence, a scope fence — that turns tool output and
