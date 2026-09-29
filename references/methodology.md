@@ -4,8 +4,8 @@ A vector card catalog catches the bugs that already have a name. The bugs that p
 the ones nobody named yet — they come from *how* you reason about a system, not from a longer
 checklist. This file is that reasoning: what "done" actually requires, the mental tools, how to
 read code so nothing is skimmed, the creativity toolbox, the deepen and chaining loops, how to use
-tool output without outsourcing judgment to it, and Focus mode. Methodology attribution:
-`CREDITS.md`.
+tool output without outsourcing judgment to it, Focus mode, and the transferable mindset lessons
+real 2026 incidents actually teach. Methodology attribution: `CREDITS.md`.
 
 ---
 
@@ -241,6 +241,80 @@ turn scopes to it. Apply Parts 1–6 the same way, but the frontier (`sieve fron
 only from the named question and its natural neighbors — not the whole surface. Focus mode still
 obeys every persistence rule in `shared-rules.md` and Part 0's completeness contract in full: a
 narrow scope is not an excuse for a shallow one.
+
+---
+
+## Part 8 — mindset lessons from 2026's real incidents
+
+The `2026-incident-patterns.md` vector cards in every pack (`packs/<pack>/vectors/`) are the
+concrete attack shapes; this part is the transferable *thinking* behind them — the framing that let
+a researcher or attacker find each one, generalized past the specific domain it happened in. A 2026
+incident in web3 and one in a browser sandbox escape frequently share the same underlying question;
+learning the question is worth more than memorizing either incident.
+
+1. **Read what the audit explicitly excluded.** An auditor's own scope notes are a map of where
+   nobody has looked, not a list of settled ground. *Worked example:* Makina's five independent 2026
+   audits all marked oracle/liquidity-pool manipulation out of scope; the attacker's entire method
+   was reading those scope notes and going straight for the one surface every firm had agreed not to
+   examine. Whenever a target has prior audit reports, read their scope-exclusion sections first,
+   not last.
+2. **The patch diff is the disclosure.** A vendor withholding root-cause detail buys almost no time
+   once a fix ships — the diff itself says exactly where the vulnerable path was. *Worked example:*
+   watchTowr reproduced GitLab's CVE-2026-19478 within minutes of the patch landing, using only the
+   advisory and the diff; Cosmos Labs' still-unpatched release branches were exploited roughly 20
+   hours after the upstream fix went public. A target with a recent upstream security fix not yet in
+   its own tagged release is a countdown, not a footnote — diff first (`WEB3-SUPPLY-01`).
+3. **Ask what a boundary actually captures, not whether it exists.** A cache key, a signature check,
+   a credential comparison — the real question is never "is there a check," it's "does the check's
+   *input* fully and uniquely capture what it's supposed to verify, and do every two components that
+   rely on it agree about what bytes they're looking at." *Worked example:* Liquid Network's
+   rangeproof cache was keyed on data that omitted asset ID and script context, so a valid proof for
+   one transaction replayed as "valid" for a different one; RouterOS's SSH auth compared an RSA
+   key's modulus but silently skipped its exponent; SAML's "fragile lock" research found the module
+   that validates a signature and the module that later processes the assertion can be made to see
+   two different logical documents from the same bytes. Apply this question to every comparison,
+   cache, or verification step you find — not only the ones that look cryptographic.
+4. **Compute cost-to-attack versus value-at-risk — some of 2026's biggest losses needed no code bug
+   at all.** *Worked example:* BonkDAO's ~$20M treasury fell to ~$4M in bought governance tokens;
+   Neutron's chain-governance seized $9.4M of a *different* protocol's contracts for ~$113K in staked
+   tokens. For any governance, quorum, or auction-style mechanism, compute the realistic clearing
+   cost against the value it gates before concluding it's safe because "no one would bother"
+   (`WEB3-GOV-01`).
+5. **Ask which layer actually has ultimate authority — and whether it's the one everyone assumes.**
+   A protocol's own multisig is not necessarily the final word on its own contracts. *Worked
+   example:* Neutron's chain-level governance could unilaterally rewrite the admin of Astroport/Drop
+   contracts, overriding each protocol's own security posture entirely — the vulnerability was in a
+   layer neither protocol controlled. For every deployed component, ask explicitly what, from
+   outside it, can override its own access control.
+6. **Score composability, not components in isolation — a bug chain increasingly beats a single
+   "hero" bug.** As individual mitigations (CFI, sandboxing, PAC, hardened allocators, SafeMath)
+   raise the cost of one flaw reaching impact, composing several individually-unremarkable
+   weaknesses is the lower-cost path to the same outcome. *Worked example:* Orange Tsai's Pwn2Own
+   2026 Edge sandbox escape chained four logic bugs with zero memory corruption; Drift's $285M loss
+   chained a six-month social-engineering campaign with an unrelated fake-token wash-trading scheme
+   — neither half alone reaches real impact. A finding scored "Medium, no direct impact standalone"
+   is exactly the shape this pattern hides inside (`methodology.md` Part 4's chaining step exists for
+   precisely this — but budget for it as a default question, not a rare exception, given how often
+   2026's highest-severity findings needed it).
+7. **New capability amplifies old bugs even when the capability itself is sound.** A legitimate new
+   primitive can turn a contained, slow-moving compromise into an instant, unrecoverable one.
+   *Worked example:* EIP-7702 batch delegation introduced no bug on its own, but let a years-old,
+   already-compromised DxSale locker's owner key drain 1,400+ pools atomically instead of one at a
+   time. When a target adopts a new standard or primitive, explicitly ask what *existing*,
+   otherwise-slow-to-exploit weakness it just made instant or atomic.
+8. **Treat a cluster of individually-modest findings as a chain candidate by default — AI compresses
+   chaining velocity.** What used to take a human researcher days of manual pivoting, an agentic
+   loop now iterates in hours (`WEB-CHAIN-01`; the Hacktron/OpenAI chain that closed the moment a
+   more capable model became available). This cuts both ways for an audit: it's a reason a target is
+   more exploitable than a pre-2025 checklist would assume, and it's a capability this skill's own
+   deepen loop (Part 4) should lean into harder, not treat as an attacker-only advantage.
+9. **Never accept a model's self-report as proof of anything, including your own reasoning about
+   it.** Anthropic's own 2026 safety report measured a 31.5% raw hijack rate on a shipped browser
+   agent before mitigations; EchoLeak was zero-click, fully chained, end to end. Whenever a target
+   embeds or orchestrates an LLM/agent, "the model refused" or "the agent said it wouldn't" is not
+   evidence — only an externally-observable side effect is
+   (`packs/web/agents/ai-native-appsec.md`'s proof-oracle discipline, which generalizes to any
+   AI-adjacent finding regardless of pack).
 
 ---
 

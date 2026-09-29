@@ -248,6 +248,52 @@ def _auto_run_aderyn(root: str, out_dir: str) -> Tuple[Optional[str], Optional[s
     return out_path, None
 
 
+def _auto_run_trailmark(root: str, out_dir: str) -> Tuple[Optional[str], Optional[str]]:
+    """Shell out to an installed `trailmark` (`uv tool install trailmark`) to build a call/reference
+    graph once — so xray Phase 1's call-chain tracing and blast-radius questions can become graph
+    queries instead of a pure manual read (`local-tooling.md` 2.1). Best-effort: trailmark's CLI is
+    young and its exact flags may drift between releases — a failed or malformed invocation here is
+    coverage-debt, exactly like a slither/aderyn compile failure, never a blocker. A manual call-chain
+    read is always the fallback when this doesn't run, not a requirement that it does."""
+    exe = shutil.which("trailmark")
+    if not exe:
+        return None, None
+    out_path = os.path.join(out_dir, "graph.json")
+    cmd = [exe, "analyze", root, "--language", "auto", "--json"]
+    try:
+        result = subprocess.run(cmd, cwd=root, capture_output=True, text=True, timeout=AUTO_RUN_TIMEOUT_SEC)
+    except subprocess.TimeoutExpired:
+        return None, f"trailmark: auto-run timed out after {AUTO_RUN_TIMEOUT_SEC}s (coverage-debt — run manually)"
+    except OSError as exc:
+        return None, f"trailmark: auto-run failed to launch ({exc})"
+    if not result.stdout.strip():
+        return None, ("trailmark: auto-run produced no output (its CLI may have changed since — "
+                       "run `trailmark --help` and wire manually, local-tooling.md 2.1)")
+    try:
+        util.atomic_write(out_path, result.stdout)
+    except OSError as exc:
+        return None, f"trailmark: failed to write {out_path} ({exc})"
+    return out_path, None
+
+
+def _mark_corroboration(leads: List[Dict[str, Any]]) -> None:
+    """Two independent detector engines flagging the same file:line is a meaningfully higher-
+    confidence signal than either one alone (different dataflow analyses, different implementations,
+    same conclusion). Mutates `leads` in place, adding `corroborated: bool` to every entry — never
+    drops or reorders anything; `judging.md`'s triage routing is free to use this, not required to."""
+    for a in leads:
+        a.setdefault("corroborated", False)
+    for i, a in enumerate(leads):
+        if not a.get("file") or not a.get("line"):
+            continue
+        for j, b in enumerate(leads):
+            if i == j or a.get("source") == b.get("source") or not b.get("file"):
+                continue
+            if a["file"] == b["file"] and abs(int(a.get("line") or 0) - int(b.get("line") or 0)) <= 2:
+                a["corroborated"] = True
+                b["corroborated"] = True
+
+
 def run(root: str, src_dirs: Optional[List[str]] = None, slither_json: Optional[str] = None,
         aderyn_json: Optional[str] = None, auto_static: bool = True) -> Dict[str, Any]:
     root = os.path.abspath(root)
@@ -295,8 +341,21 @@ def run(root: str, src_dirs: Optional[List[str]] = None, slither_json: Optional[
         except (OSError, ValueError, KeyError) as exc:
             notes.append(f"{name} {path}: {exc}")
 
+    _mark_corroboration(leads)
+
+    graph_path = None
+    if auto_static:
+        graph_path, note = _auto_run_trailmark(root, out_dir)
+        if graph_path:
+            auto_ran.append("trailmark")
+        elif note:
+            notes.append(note)
+        else:
+            notes.append("trailmark: not installed — call-chain tracing stays manual "
+                         "(optional accelerant, not coverage-debt; local-tooling.md 2.1)")
+
     return {"pack": "web3", "root": root, "generated": util.now_iso(), "src_dirs": dirs,
             "languages": sorted({f["lang"] for f in files}), "files": files, "skipped": skipped,
             "nsloc_total": total, "by_subsystem": dict(by_sub),
             "entry_candidates": grep_entries(root, files), "tests": _tests(root),
-            "tool_leads": leads, "auto_ran": auto_ran, "notes": notes}
+            "tool_leads": leads, "auto_ran": auto_ran, "graph_path": graph_path, "notes": notes}

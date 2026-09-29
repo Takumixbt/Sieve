@@ -89,7 +89,7 @@ Sieve/
 ├─ agents/README.md       THE ROSTER — every lens agent, ★-marked core vs. deep, bundle spec
 ├─ packs/                 THE HUNTERS — one directory per domain, same shape in each
 │   ├─ web3/    {agents/*.md × 12, vectors/*.md, judging.md}
-│   ├─ web/     {agents/*.md × 8,  vectors/*.md, judging.md}
+│   ├─ web/     {agents/*.md × 9,  vectors/*.md, judging.md}
 │   ├─ binary/  {agents/*.md × 7,  vectors/*.md, judging.md}      native + mobile
 │   └─ seams/   {agents/crossover-agent.md}                        cross-pack seam hunter
 │

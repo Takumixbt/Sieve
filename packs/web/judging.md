@@ -15,6 +15,9 @@ Read after `references/judging.md`.
 - A CVE flagged by `sieve kb osv` in a dependency this application never actually calls into
   (`supply-chain-agent`'s reachability check) — an unreachable known-vulnerable function is a note,
   not a finding.
+- A model "saying" something unsafe or refusing/complying with no tool call fired and no
+  externally-observable side effect — a chat-transcript-only observation is a content-safety note,
+  not an application-security finding (`ai-native-appsec-agent`'s proof-oracle discipline).
 
 ## Calibration note
 

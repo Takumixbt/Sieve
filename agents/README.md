@@ -42,6 +42,7 @@ Methodology attribution: `CREDITS.md`.
 | `ssrf-smuggling-agent` | | SSRF, request smuggling, cache poisoning, host-header attacks |
 | `graphql-agent` | | Introspection, depth/complexity DoS, authorization-per-field gaps |
 | `supply-chain-agent` | | Dependency confusion, exposed secrets, outdated/vulnerable libraries |
+| `ai-native-appsec-agent` | | Prompt injection, insecure LLM output handling, MCP/plugin supply chain, agent memory poisoning, toxic tool-call composition — only in scope when the target has an AI-native surface |
 
 ## Binary / mobile — `packs/binary/agents/`
 

@@ -31,9 +31,11 @@ def cmd_web3(args: argparse.Namespace) -> int:
     path = _write_facts(eng, facts)
     if facts["auto_ran"]:
         print(f"static analysis: auto-ran {', '.join(facts['auto_ran'])} (local-tooling.md 2.1) "
-              f"— .sieve/xray/{{tool}}.json written")
+              f"— .sieve/xray/{{tool,graph}}.json written")
+    corroborated = sum(1 for lead in facts["tool_leads"] if lead.get("corroborated"))
     print(f"web3: {len(facts['files'])} file(s), {facts['nsloc_total']} nSLOC, "
-          f"{len(facts['entry_candidates'])} entry-point candidate(s), {len(facts['tool_leads'])} tool lead(s)")
+          f"{len(facts['entry_candidates'])} entry-point candidate(s), {len(facts['tool_leads'])} tool lead(s)"
+          + (f" ({corroborated} corroborated by 2+ tools — prioritize these)" if corroborated else ""))
     for n in facts["skipped"] + facts["notes"]:
         print(f"note: {n}")
     print(f"wrote {path}\nNEXT: read entry_candidates + tool_leads, then write xray/entry-points.md, "

@@ -35,6 +35,55 @@ All notable changes to Sieve are documented here. Versioning follows
   for "the x-ray isn't deep enough" is almost always "wire in the real tool's output," not "write
   more Python to replace it."
 
+## [1.2.0] — 2026-09-29
+
+### Added
+- **`sieve xray web3` now auto-invokes `slither`, `aderyn`, and (when installed) `trailmark`
+  itself** — static analysis and call-graph construction are the mechanical layer's own first
+  move, not corroboration the operator supplies after the fact (`references/xray.md` Phase 0,
+  `sieve/xray_web3.py`). Cross-tool corroboration is now a mechanical field on every tool lead:
+  `corroborated: true` when 2+ independent detector engines flag overlapping `file:line` —
+  meaningfully higher confidence than either tool alone, surfaced in the printed x-ray summary.
+- **A new `ai-native-appsec-agent`** in the web pack — prompt injection (direct, indirect,
+  multi-modal, hidden-Unicode), insecure LLM output handling, MCP/plugin supply chain, agent
+  memory/RAG poisoning, toxic tool-call composition, and guardrail bypass, with a proof-oracle
+  discipline built specifically to avoid an agent's self-report counting as evidence. Added after
+  a research pass confirmed the category is now mainstream-scale (an OWASP taxonomy, 40+ MCP CVEs
+  in one quarter, EchoLeak, Anthropic's own 31.5% pre-mitigation browser-agent hijack-rate
+  disclosure) rather than speculative.
+- **68 new vector cards** (up from 14) distilled from real, named, dated 2026 incidents across all
+  three packs — `packs/<pack>/vectors/2026-incident-patterns.md` — plus
+  `packs/web/vectors/ai-native-appsec.md` and `packs/web3/vectors/cross-chain-and-altvm.md`
+  (Algorand/Substrate/TON/Cosmos-SDK patterns, a previously uncovered chain surface).
+- **`references/methodology.md` Part 8** — nine mindset lessons distilled from how real 2026
+  incidents were actually found (read what an audit excluded; the patch diff is the disclosure;
+  ask what a boundary actually captures; compute cost-to-attack vs. value-at-risk; which layer has
+  ultimate authority; score composability, not components in isolation; new capability amplifies
+  old bugs; AI compresses chaining velocity; never trust a model's self-report as proof).
+- **`references/judging.md`**: a plain-language restatement pre-filter in Gate 0 (half of false
+  positives collapse the moment a claim has to be said plainly instead of in its original shape),
+  complexity-based triage routing complex findings through a second independent pass on Gates 1
+  and 6, and a negative-PoC requirement alongside Gate 6's positive proof.
+- **`references/xray.md`**: a fourth "Review Required" access-control classification bucket for
+  dynamic/computed checks a grep pass can't resolve on its own; Five-Whys root-cause analysis and
+  regression-detection (a diff reverting a past fix-commit's protection) added to the git-history
+  pass; invariant-guided targeted `mythril` runs (once `xray/invariants.md` exists, target
+  mythril at exactly the functions its guard-lift step flagged, instead of guessing).
+- **`references/local-tooling.md`**: `heimdall-rs` promoted from a buried sub-note to a full table
+  row (including its storage-layout-dump use against verified proxy contracts); `CloakBrowser`
+  added for bot-defended recon targets; `trailmark` added as an auto-run call-graph accelerant;
+  `Triton` added alongside `angr`; recon gaps filled (`dnstwist`, `knock`, `fierce`, regional
+  search engines, breach-data lookups, BGP/network-ownership intelligence, `abuseipdb`).
+
+### Design notes for future maintainers
+- The ultrafuzz-inspired proposal to wrap the static-analysis pass in a full topology-file-driven
+  multi-node campaign (mirrored from `monad-developers/ultrafuzz`'s real architecture) was
+  deliberately *not* built as a generic orchestration engine — that's the same overbuild mistake
+  `[1.0.0]`'s design note already warns about, just with a fuzzing-campaign shape instead of a
+  parser shape. What shipped instead is proportionate: auto-run the tools that are actually safe
+  and fast to auto-run, corroborate their output mechanically, and document (never automate) the
+  slow/judgment-heavy step of targeting `mythril` at invariant-flagged functions.
+
 ## [1.1.0] — 2026-09-29
 
 ### Changed

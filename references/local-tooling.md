@@ -24,8 +24,13 @@ when the default doesn't fit the target.
 
 | Purpose | Primary | Alternatives / specialists |
 |---|---|---|
-| Subdomain enumeration | `subfinder` | `amass` (deeper, slower, graph-based), `assetfinder`, `chaos` (ProjectDiscovery's own dataset, needs an API key), certificate-transparency search (`crt.sh`, `censys`) |
+| Subdomain enumeration | `subfinder` | `amass` (deeper, slower, graph-based), `assetfinder`, `chaos` (ProjectDiscovery's own dataset, needs an API key), certificate-transparency search (`crt.sh`, `censys`), `knock` (wordlist-driven), `fierce` (DNS recon for non-contiguous IP space) |
 | DNS resolution / brute force | `dnsx` | `massdns`, `puredns`, `shuffledns` (wordlist-driven subdomain brute force at scale) |
+| Typosquat / phishing-domain / brand-impersonation detection | `dnstwist` | a different use case from subdomain enum — permutes the target's own domain and checks which lookalikes are registered; relevant to any brand-protection-adjacent engagement scope |
+| IP/service search engines beyond Shodan/Censys, useful when the target or its infra isn't US-centric | Shodan/Censys | `ZoomEye`, `FOFA` (China-focused), `onyphe`, `BinaryEdge`, `GreyNoise` (also flags known-scanner/benign noise, useful for filtering your own recon traffic's signature) |
+| Credential-reuse / data-breach exposure | `haveibeenpwned` API | `dehashed` — relevant to a credential-stuffing/password-reuse angle on the recon surface |
+| Network-ownership intelligence (who actually announces this IP range) | `BGPview` | `Robtex` — useful alongside `cloud_enum`/`S3Scanner` for cloud-asset-exposure work |
+| IP reputation / abuse-history lookup | `abuseipdb` | flags a target's outbound IPs or webhook endpoints against known-abusive ranges — cheap, free-tier API |
 | Live-host probing & fingerprinting | `httpx` | `whatweb`, `wappalyzer` (browser extension or CLI), `webanalyze` |
 | Visual recon (screenshot every live host) | `gowitness` | `aquatone`, `eyewitness` — invaluable for triaging hundreds of hosts fast |
 | Active crawling (JS-aware) | `katana` | `gospider`, `hakrawler` |
@@ -119,6 +124,7 @@ choice, since their detector sets overlap but don't agree often enough to skip e
 | `4naly3er` | Gas-and-pattern static pass — most of its findings are Do-Not-Report by `packs/web3/judging.md`, but it occasionally surfaces a real access-control gap alongside the noise. |
 | Wake (`wake detect`) | Ackee Blockchain's Python-based framework — detectors plus a scriptable analysis layer when a one-off custom check is worth writing. |
 | `surya` / `sol2uml` | Call-graph and inheritance-graph visualization — read before writing `xray/architecture.json` by hand on a large, deeply-inherited codebase. |
+| `trailmark` (`uv tool install trailmark`) | Builds a queryable code graph once (tree-sitter parse + a `rustworkx` graph, 17+ languages including Solidity), then answers "who calls X," "every path from this entry point to that sink," and blast-radius questions as graph queries instead of a manual re-read every time the question comes up. Auto-run by `sieve xray web3` alongside slither/aderyn when installed (`xray/graph.json`) — see `xray.md` Phase 1; a manual call-chain trace is still the fallback when it isn't installed, never a blocker. `.trailmark/links.toml` is worth setting up by hand on a protocol that spans more than one VM/language (an Anchor program calling out to a Solidity bridge, a CosmWasm contract's IBC hooks) — a single-language parser can't see that boundary crossing on its own. |
 | **`heimdall-rs`** (CLI: `heimdall`, installer: `bifrost`) | **Not just a decompiler for missing-source targets** — `heimdall decompile` (pseudo-Solidity from bytecode), `heimdall disassemble` (raw opcodes), `heimdall cfg` (control-flow graph), and `heimdall dump` (a storage-layout dump straight off a deployed contract's actual slots, which catches a proxy/upgrade storage-collision that reading the *source's* declared layout alone would miss — run it even on a verified target when a delegatecall/proxy pattern is in play). |
 | `panoramix` | An older EVM decompiler, still worth a second pass alongside `heimdall-rs` when its output disagrees or one tool's decompilation is unusually lossy on a specific target's bytecode patterns. |
 
@@ -149,6 +155,9 @@ reason about directly.
 | Move (Aptos / Sui) | The Move Prover (formal verification built into the Move toolchain), `aptos` CLI, `sui` CLI, `sui move test`. |
 | CosmWasm | `cosmwasm-check` (validates a compiled contract against the chain's required capabilities), `wasmd` for a local chain. |
 | Cairo / Starknet | `caracal` (Crytic's Cairo static analyzer — the closest Cairo equivalent to Slither), `amarna` (an older Cairo static analyzer, still useful for a second pass), the `starknet` CLI/Scarb toolchain for compiling and testing. |
+| Algorand | `goal`/`algokit` CLI, PyTeal/TEAL static review — check specifically for rekeying-vulnerable logic, unchecked fee handling, and asset-closing edge cases (Trail of Bits' `building-secure-contracts` names these as the highest-frequency real Algorand bug classes). |
+| Substrate (Polkadot/Kusama parachains) | `subxt` for typed chain interaction/testing, `cargo-contract` for ink!-based pallets — check `BadOrigin` handling, weight/fee-exhaustion, and panic-on-overflow in pallet arithmetic. |
+| TON | FunC/Tact toolchain (`func`, `tact` compiler), `ton-community/blueprint` for a local test harness — check integer-as-boolean confusion, fake-Jetton-contract acceptance, and TON forwarding without a gas-sufficiency check. |
 
 ### 2.4 On-chain intelligence
 
@@ -193,7 +202,10 @@ equivalent. `Valgrind` (and `Dr. Memory` on Windows) for memory-error detection 
 doesn't need to be adversarially fuzzed — often faster than standing up a fuzzer for a single
 suspected bug. `QEMU`, `unicorn`, and `qiling` (a higher-level emulation framework built on
 Unicorn) for running or single-stepping code without the real hardware/OS underneath it —
-essential for firmware and embedded targets.
+essential for firmware and embedded targets. `Triton` — dynamic symbolic execution/taint-tracking
+built on real instruction traces, a complementary alternative to `angr`'s (mostly static) symbolic
+execution when a question is easier answered by actually running the target under instrumentation
+and tracking taint through it than by exploring the binary's control-flow graph abstractly.
 
 ### 3.4 Fuzzing
 

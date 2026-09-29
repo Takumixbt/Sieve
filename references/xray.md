@@ -38,6 +38,18 @@ the ecosystem think is wrong with it, instead of rediscovering the same access-c
 hour later. A detector finding is still a LEAD, still gated by `judging.md` like a Solodit precedent
 (`knowledge.md`) — the ordering change is about when you see it, not about trusting it more.
 
+Each entry in `tool_leads` carries a `corroborated` field: `true` when slither and aderyn
+independently flagged the same `file:line` (within a couple of lines), `false` when only one tool
+did. Two independent detector engines agreeing is a meaningfully stronger signal than either alone —
+read corroborated leads first, and route them through `judging.md`'s new complexity triage as
+**straightforward** by default unless something about the specific finding says otherwise.
+
+`sieve xray web3` also auto-invokes `trailmark` when it's on PATH (`uv tool install trailmark`),
+writing `.sieve/xray/graph.json` — a call/reference graph you can query instead of hand-tracing
+"who calls this" or "what's the blast radius of this function" for Phase 1's call-chain step and
+Phase 3's architecture map. It's an accelerant, never a requirement: its absence is a light note, not
+coverage-debt, and a manual call-chain read is always the fallback.
+
 A detector finding is real but gated (`judging.md`) before it ships, exactly like a Solodit
 precedent. OpenAPI/HAR/URL-list input (web) works the same way in spirit but can't be auto-run the
 same way — it depends on a live target and the engagement's active-testing permission
@@ -57,11 +69,19 @@ matched a permissionless-shaped pattern (Solidity's `external`/`public` grep, or
 equivalent). For each one:
 
 1. Read the function. Apply Feynman (`methodology.md`) before anything else.
-2. Classify: **permissionless** (no access modifier and no internal `msg.sender`/caller check),
-   **role-gated** (a named role/modifier restricts it — record which one), or **admin-only**
-   (owner/governance/timelock-only). A function with no *modifier* but an inline
+2. Classify into one of **four** buckets, not three: **permissionless** (no access modifier and no
+   internal `msg.sender`/caller check), **role-gated** (a named role/modifier restricts it — record
+   which one), **admin-only** (owner/governance/timelock-only), or **Review Required** — the check
+   exists but is computed at runtime (a dynamic lookup, a signature-derived condition, a value read
+   from storage that isn't a simple role constant) and can't be resolved by pattern-matching or a
+   quick read alone. A function with no *modifier* but an inline
    `require(msg.sender == pendingOwner)` is role-gated, not permissionless — read the body, don't
-   trust the signature alone.
+   trust the signature alone. **Review Required is not a placeholder to clear later — it's the
+   bucket most likely to hide a real bug, precisely because it's the one a grep-driven pass can't
+   resolve on its own.** Every entry in it gets an explicit follow-up: trace the dynamic condition
+   by hand (what can make it evaluate true?) before it's allowed to move to role-gated or
+   permissionless — never leave it silently mis-classified as role-gated just because *some* check
+   is present.
 3. Trace its call chain: does it call an internal function that writes state? That internal
    function inherits the *weakest* caller's effective access — record that, it's exactly the seam
    the sibling rule and the asymmetry lens both hunt.
@@ -100,6 +120,15 @@ Write `xray/invariants.md`: one numbered `INV-<n>` entry per invariant, its deri
 prove it), and On-chain: Yes/No. This numbered list is what `judging.md` Gate 4 checks findings
 against, and what the report's Coverage section counts probed vs. unprobed against.
 
+**This list is also mythril's target list, not just a narrative artifact.** `mythril` is slow enough
+that auto-running it against a whole codebase is the wrong tradeoff (`local-tooling.md` 2.1) — but
+once `xray/invariants.md` exists, run it *targeted*: every `On-chain: No` guard-lift entry names an
+unguarded write site, and every function on that list is exactly the kind of arithmetic/reachability
+question mythril's symbolic execution is strongest at. `mythril analyze <path> --function <name>`
+against precisely those functions turns "operator picks functions to symbolically execute by
+guessing" into "the invariant pass already told you which functions are worth the wait" — cheaper
+and higher-signal than either a blind full-codebase run or manual selection.
+
 **Web authorization model.** Build the `(endpoint × method × identity × object)` matrix from
 `surface.tsv`: for every endpoint that takes an object ID, do the sibling paths (same resource,
 different verb) all enforce the same check? Write `xray/authz-matrix.md` — the empty cells (an
@@ -128,6 +157,25 @@ signatures — by filename and commit-message pattern), late changes before the 
 internalized forked dependencies, and TODO/FIXME markers with their blame. Read the top
 fix-candidates' actual diffs before citing them — the score is a prioritization signal, not proof
 that a commit fixed a vulnerability.
+
+**Five Whys on every fix-scored commit worth a closer look.** Don't stop at "this commit changed
+line 40" — ask why the change was made, then why *that* was necessary, recursively, until the
+answer is a root cause rather than a symptom. A commit message reading "fix overflow in withdraw"
+prompts: why was withdraw overflow-prone? → because it used raw arithmetic → why raw arithmetic
+here specifically when the rest of the file uses SafeMath? → because this function was added later,
+copy-pasted from a different module that predates the SafeMath convention. That last answer is
+usually where the *pattern* worth checking elsewhere in the codebase actually lives — a symptom-level
+read stops at "overflow, now fixed" and never asks whether the same copy-paste-from-an-older-module
+pattern reappears somewhere the fix commit didn't touch.
+
+**Regression detection as its own named finding category.** A diff in the *current* review that
+touches the same lines a past fix-commit touched, in the reverse direction, is not an ordinary
+change — it's a candidate silent revert of a prior security fix. Cross-reference every file in the
+current review scope against `sieve xray git`'s fix-candidate list: if a line a past fix-commit
+specifically added or changed is absent, altered back, or bypassed in the code under review, record
+it explicitly as **REGRESSION**, not as a fresh finding discovered independently — the git-blame
+trail *is* the evidence, and citing "this exact protection existed and was removed" is a stronger,
+faster-to-verify claim than re-deriving the vulnerability from first principles.
 
 ## The verdict
 
