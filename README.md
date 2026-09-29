@@ -19,19 +19,20 @@ scan, crawl, fuzz, or disassemble anything itself: it teaches an agent which rea
 discipline — a six-gate judge, evidence-or-silence, a scope fence — that turns tool output and
 hunches into a small number of proven findings instead of a pile of noise.
 
-It's methodologically built on [Pashov Audit Group's skills](https://github.com/pashov/skills)
-(MIT; see [`CREDITS.md`](CREDITS.md)), generalized from Solidity-only to web3's other VMs plus web
-and binary/mobile, and extended with a persistence engine that enforces its own anti-laziness rules
-at the harness level (a Claude Code Stop hook — see below) rather than only asking the model
-nicely.
+It covers Solidity, Vyper, Move, Anchor/Solana, and Cairo on the web3 side, every common web
+framework, and native/mobile binaries — and it enforces its own anti-laziness rules at the harness
+level (a Claude Code Stop hook — see below) rather than only asking the model nicely. Methodology
+attribution: [`CREDITS.md`](CREDITS.md).
 
 ## Start here
 
-- **New to the skill?** [`SKILL.md`](SKILL.md) is the controller — the full lifecycle and the exact
-  orchestration turns.
-- **Setting it up?** [`setup.md`](setup.md).
-- **Wiring in Burp/Slither/Ghidra/etc.?** [`references/local-tooling.md`](references/local-tooling.md).
-- **Just want the rules every agent follows?** [`references/shared-rules.md`](references/shared-rules.md).
+| If you're... | Read |
+|---|---|
+| New to the skill | [`SKILL.md`](SKILL.md) — the controller: full lifecycle, exact orchestration turns |
+| Setting it up | [`setup.md`](setup.md) |
+| Wiring in Burp/Slither/Ghidra/etc. | [`references/local-tooling.md`](references/local-tooling.md) |
+| Looking for the rules every agent follows | [`references/shared-rules.md`](references/shared-rules.md) |
+| Looking for a specific lens agent | [`agents/README.md`](agents/README.md) — the roster table |
 
 ## What makes it different
 
@@ -56,23 +57,59 @@ nicely.
 
 ## Layout
 
+Five things to actually run (`SKILL.md`, `AGENTS.md`, `setup.md`, `sieve.yaml`, `bin/sieve`) at the
+root; everything else groups under one of four directories — the method (`references/`), the
+hunters (`agents/`, `packs/`), the engine (`sieve/`), and everything that isn't markdown or Python
+(`kb/`, `templates/`, `scripts/`, `assets/`).
+
 ```
-SKILL.md                the controller
-AGENTS.md               host-capability contract (what a harness needs to give this skill)
-setup.md                install
-references/             the method: shared-rules, methodology, judging, xray, dispatch,
-                         scope-intake, knowledge, crossover, report-formatting, cvss-guide,
-                         local-tooling
-agents/README.md        the roster and bundle spec
-packs/{web3,web,binary}/agents/*.md    the lenses
-packs/{web3,web,binary}/vectors/*.md   the fast-recall attack catalog (parseable cards)
-packs/{web3,web,binary}/judging.md     pack-specific gate additions
-packs/seams/agents/crossover-agent.md  the cross-pack seam hunter
-sieve/                  the orchestration CLI (stdlib-only Python) — state, frontier, hooks,
-                         KB, x-ray enumerators, report assembler
-scripts/generate_svg.py architecture-diagram generator (vendored from Pashov Audit Group, MIT)
-kb/seed/                a starting set of local knowledge cards
-tests/                  the CLI's own test suite (run: python3 -m unittest discover -s tests)
+Sieve/
+├─ SKILL.md               the controller — lifecycle, orchestration turns, non-negotiables
+├─ AGENTS.md              host-capability contract: what a harness must give this skill
+├─ README.md              this file
+├─ CREDITS.md             the one place methodology/tooling lineage is named
+├─ CHANGELOG.md · LICENSE · VERSION
+├─ setup.md               install, per OS
+├─ sieve.yaml             engagement config — quotas, thresholds, KB sources, persistence budgets
+├─ bin/sieve              entry point (`./bin/sieve ...` or `python3 -m sieve ...`)
+│
+├─ references/            THE METHOD — read in full, every engagement
+│   ├─ shared-rules.md        the contract every dispatched agent operates under
+│   ├─ methodology.md         completeness contract, mental tools, creativity techniques
+│   ├─ judging.md              the six-gate judge
+│   ├─ xray.md                 mechanical-then-narrative x-ray discipline
+│   ├─ dispatch.md             bundle assembly, parallel-spawn mechanics
+│   ├─ scope-intake.md         turning a dropped target into `.sieve/case.md`
+│   ├─ knowledge.md            KB prior-art sweep + write-back
+│   ├─ crossover.md            the seven cross-pack seam shapes
+│   ├─ report-formatting.md    the assembler's rules
+│   ├─ cvss-guide.md           scoring judgment — deliberately no calculator
+│   ├─ property-fuzzing.md     the invariant-handler pattern for fuzz suites
+│   └─ local-tooling.md        the full external tool roster, by domain
+│
+├─ agents/README.md       THE ROSTER — every lens agent, ★-marked core vs. deep, bundle spec
+├─ packs/                 THE HUNTERS — one directory per domain, same shape in each
+│   ├─ web3/    {agents/*.md × 12, vectors/*.md, judging.md}
+│   ├─ web/     {agents/*.md × 8,  vectors/*.md, judging.md}
+│   ├─ binary/  {agents/*.md × 7,  vectors/*.md, judging.md}      native + mobile
+│   └─ seams/   {agents/crossover-agent.md}                        cross-pack seam hunter
+│
+├─ sieve/                 THE ENGINE — stdlib-only Python, mechanical work only
+│   ├─ main.py · __main__.py          CLI dispatch
+│   ├─ cli_core.py                    init/phase/pass/status/ladder/frontier/hook/finish
+│   ├─ cli_kb.py                      kb index/search/get/osv/use/add/prime/writeback/doctor
+│   ├─ cli_xray.py · cli_report.py · cli_setup.py
+│   ├─ state.py · config.py · fence.py · frontier.py · hook.py
+│   ├─ kb_store.py · kb_net.py · vectors.py
+│   ├─ xray_web3.py · xray_web.py · xray_git.py
+│   └─ report.py · flow.py · util.py · yamlish.py · banner.py
+│
+├─ kb/                    seed knowledge — the real vault lives at `~/.sieve/kb/`
+│   ├─ README.md
+│   └─ seed/cards/*.md         shipped examples, `status: seed`, never auto-promoted
+├─ templates/InvariantHandler.t.sol    the property-fuzzing starter template
+├─ scripts/generate_svg.py             architecture-diagram generator (vendored, MIT — CREDITS.md)
+└─ assets/banner-art.txt               the BOLD SIEVE banner source
 ```
 
 ## For authorized use only

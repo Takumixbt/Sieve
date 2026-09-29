@@ -1,7 +1,7 @@
 # X-ray — the pre-hunt map, every engagement, every pack
 
-Pashov's x-ray proved the right division of labor for this step: **grep is the source of truth
-for which lines are candidates; the agent reads the source and classifies each one.** A script
+The right division of labor for this step: **grep is the source of truth for which lines are
+candidates; the agent reads the source and classifies each one.** A script
 that tried to do the classification would be re-implementing Slither/Aderyn (web3) or a real
 crawler (web) worse than they do it. `sieve xray <pack>` only ever does the mechanical half —
 discovery, line counts, test inventory, and a grep pass — and hands you a list to read.
@@ -93,8 +93,7 @@ memory-safety class (`packs/binary/vectors/*.md`) applies to that boundary's sha
 ## Phase 3 — the architecture map
 
 Write `xray/architecture.json` (schema in `report-formatting.md`'s Architecture Diagram section —
-nodes, edges, groups, the same format pashov's generator consumes) and run `sieve xray map` to
-render `architecture.svg`. This is the one artifact every reader opens first; keep node/edge counts
+nodes, edges, groups) and run `sieve xray map` to render `architecture.svg`. This is the one artifact every reader opens first; keep node/edge counts
 inside the budget table in `report-formatting.md` and prioritize completeness (every contract or
 service that holds funds, gates access, or sits on a critical path is visible) over compression.
 

@@ -24,7 +24,8 @@ All notable changes to Sieve are documented here. Versioning follows
 - The report assembler (`sieve report`) — dedup, sort, and count over agent-written finding files;
   never computes a verdict or confidence itself.
 - `references/local-tooling.md` — the real tool roster and Burp extension list per pack.
-- Vendored `scripts/generate_svg.py` from Pashov Audit Group (MIT) for the architecture diagram.
+- Vendored `scripts/generate_svg.py` (MIT) for the architecture diagram — attribution in the
+  file's own header and in `CREDITS.md`.
 
 ### Design notes for future maintainers
 - An earlier iteration of this skill included a hand-rolled Solidity structural parser and a
@@ -33,3 +34,28 @@ All notable changes to Sieve are documented here. Versioning follows
   tempted to rebuild either, read `CREDITS.md` and `references/local-tooling.md` first — the fix
   for "the x-ray isn't deep enough" is almost always "wire in the real tool's output," not "write
   more Python to replace it."
+
+## [1.1.0] — 2026-09-29
+
+### Changed
+- `references/local-tooling.md` expanded into a full brainstorm — every discovery, static,
+  dynamic, exploit-development, and reporting tool worth knowing per pack, not just a starter
+  list.
+- Every agent file across all three packs deepened substantially: concrete commands tied to the
+  expanded tool roster, exhaustive per-target checklists, and an explicit minimum-coverage
+  contract so a pass can't be called complete after a shallow first read.
+- `references/methodology.md` expanded: more of the creativity/persistence toolbox, worked
+  through with concrete examples.
+- `README.md`'s layout section rewritten as a full, precise directory tree (every file named, every
+  directory labeled by role) instead of a partial flat list; `SKILL.md` gained a matching compact
+  repository map and its References section turned from a prose wall into a grouped table, each
+  group tagged with the lifecycle phase it matters for.
+
+### Removed
+- The `tests/` suite and `third_party/` directory. The Python CLI's own correctness is now
+  self-checked by `sieve lint` (content) and `sieve doctor` (environment) rather than a parallel
+  pytest tree — a skill repository should read as a skill, not as a piece of software with its
+  engineering scaffolding on full display. (The removed suite's coverage is preserved in this
+  repository's git history for anyone extending `sieve/`.)
+- Inline attribution scattered through the working reference files. Methodology and tooling
+  lineage now live in one place: `CREDITS.md`.

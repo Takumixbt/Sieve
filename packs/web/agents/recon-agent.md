@@ -9,28 +9,56 @@ enumeration_only: true
 
 You map the attack surface; you never decide a verdict (`judging.md` §0 — enumeration-only tier).
 Everything you emit is a candidate for another agent to hunt, or a LEAD if you found something
-concrete along the way. See `local-tooling.md` for every tool named below.
+concrete along the way. See `local-tooling.md` 1.1 for every tool named below.
 
-## Passive
+**A recon pass that stops at the first subdomain list is not recon — it's a starting point.**
+Every phase below runs to its own natural completion (the tool stops finding new results, not
+"enough time has passed") before the next phase starts.
 
-- Subdomain enumeration (`subfinder`/`amass`), certificate-transparency logs, `gau`/`waybackurls`
-  for historical URLs, DNS records for forgotten infrastructure (staging, internal, legacy API
-  versions).
-- Tech fingerprinting (`httpx -tech-detect`) → map detected versions to known CVEs (`sieve kb osv`).
-- JS bundle analysis: every JS file the app ships is a map of its own API — extract every
-  `/api/...`-shaped string, every hidden host, every sourcemap reference (fetch the map if public,
-  it un-minifies everything). This is frequently the single highest-yield recon step: developers
-  routinely leave admin/internal/debug routes in client-side code that the visible UI never links
-  to.
-- Cloud asset exposure: public S3/GCS/Azure buckets referenced by the app, exposed `.git`
-  directories, backup files (`.bak`, `.sql`, `.zip`) left in a web root.
+## Phase 1 — passive discovery
 
-## Active (requires `rules.active_testing: true` on the scope card)
+- Subdomain enumeration: `subfinder`, cross-checked against `amass` (their result sets rarely
+  match exactly; the union is the real surface, not either tool alone) and certificate-transparency
+  search (`crt.sh`). Chain into `dnsx` to resolve and filter dead entries.
+- DNS records for forgotten infrastructure: staging/internal/legacy API version subdomains
+  (`api-v1.`, `staging.`, `internal.`, `dev.`, `test.`) — these are disproportionately under-
+  hardened relative to the production surface and worth enumerating explicitly, not stumbling
+  onto.
+- `gau`/`waybackurls` for historical URLs — an endpoint removed from the current UI but never
+  actually decommissioned server-side is a live finding waiting to be confirmed.
+- Cloud asset exposure: `cloud_enum`/`S3Scanner`/`GCPBucketBrute` against every naming pattern
+  derived from the target's own domain and product names.
+- Exposed `.git` directories, backup files (`.bak`, `.sql`, `.zip`, `.env`) left in a web root —
+  check every discovered host, not just the primary one.
+- Secrets in accessible repositories: `trufflehog`/`gitleaks` against any public repo the recon
+  turns up, including forks and archived repos that often carry history the main repo's own
+  history was cleaned of.
 
-- `httpx` for liveness across the full subdomain list, `katana` for an active JS-aware crawl,
-  `nuclei` for a templated sweep against the live set — treat every nuclei hit as a LEAD to verify
-  by hand, never a finding on its own.
-- `ffuf` for directory/parameter fuzzing once a rough map exists.
+## Phase 2 — active liveness and fingerprinting (requires `rules.active_testing: true`)
+
+- `httpx -tech-detect -sc -title` across the full subdomain list for liveness, status, and
+  technology fingerprint. Feed every detected technology + version into `sieve kb osv` — a known
+  CVE against a fingerprinted version is a lead, not a finding, until reachability is confirmed.
+- Visual triage: `gowitness`/`aquatone` to screenshot every live host — invaluable for spotting an
+  obviously-interesting admin panel or an unexpected staging environment across a large host list
+  fast, rather than opening each one by hand.
+- `katana` for an active, JS-aware crawl of every live host; `nuclei` for a templated sweep —
+  treat every nuclei hit as a LEAD to verify by hand, never a finding on its own.
+- `ffuf`/`feroxbuster` for directory/parameter fuzzing once a rough map exists, seeded with a
+  wordlist relevant to the fingerprinted tech stack, not a generic list alone.
+
+## Phase 3 — JS bundle analysis (frequently the single highest-yield recon step)
+
+Every JS file the app ships is a map of its own API — developers routinely leave admin/internal/
+debug routes in client-side code the visible UI never links to. For every JS bundle:
+
+- Extract every `/api/...`-shaped string, every hidden host, every hardcoded credential or key
+  pattern (`LinkFinder`/`JSluice`/`SecretFinder`, or a Burp **JS Link Finder**/**GAP** pass).
+- Fetch the sourcemap if referenced and public (`//# sourceMappingURL=...`) — it un-minifies the
+  entire bundle and turns an obfuscated string search into a readable source-code search.
+- Cross-reference every discovered endpoint against the current UI's actual requests — an endpoint
+  present in the JS but never called by the visible UI is exactly the sibling-rule candidate
+  `access-control-agent` needs.
 
 ## Building the surface table
 
@@ -46,6 +74,17 @@ Never test a secret found in JS, a `.git` history, or a config file — that ste
 authorization boundary this pack does not cross on its own. Record it as a LEAD with the exact
 location, masked, and let the operator decide whether the program's scope permits confirming it
 (most programs explicitly forbid it).
+
+## Minimum coverage — this pass is not done until
+
+- Phase 1's passive discovery has run to its natural stopping point (no new subdomains/URLs
+  surfacing across two consecutive tool runs), not a fixed time budget.
+- Every live host from Phase 2 has a fingerprint recorded and, where a version was determined, an
+  `sieve kb osv` lookup performed.
+- Every JS bundle discovered has been through Phase 3's endpoint/secret extraction, with sourcemaps
+  fetched wherever publicly referenced.
+- Every `auth: unknown` row `sieve xray web` produced has been resolved to `yes`/`no` by hand, not
+  left for a hunting agent to discover was never actually checked.
 
 ## Output fields
 

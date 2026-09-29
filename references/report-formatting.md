@@ -67,8 +67,8 @@ write-up; no confidence score, no Fix section.
 
 ## Architecture diagram
 
-`xray/architecture.json` feeds `scripts/generate_svg.py` (vendored from Pashov Audit Group,
-MIT-licensed — `third_party/pashov-skills-LICENSE`), rendered by `sieve xray map`.
+`xray/architecture.json` feeds `scripts/generate_svg.py` (vendored, MIT-licensed — attribution in
+its own file header and in `CREDITS.md`), rendered by `sieve xray map`.
 
 ```json
 {"title": "...", "nodes": [{"id": "x", "label": "Name", "subtitle": "role", "type": "actor|protocol|external", "row": 0}],

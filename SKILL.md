@@ -57,6 +57,18 @@ the same as reading it as its own turn.
 
 A bare drop with no flag lets intake pick the pack(s) — `references/scope-intake.md`.
 
+## Repository map
+
+```
+references/   the method (read Turn 1, in full)   │  packs/<pack>/   the hunters
+agents/       the roster + bundle spec             │    agents/*.md     the lens files
+sieve/        the engine (stdlib Python, mechanical)│    vectors/*.md    fast-recall attack cards
+kb/           seed knowledge cards                  │    judging.md      pack-specific gate additions
+```
+
+Full tree with every file named: [`README.md`](README.md)'s Layout section. This is the compact
+version — enough to know where to look without leaving this file.
+
 ## The lifecycle
 
 ```
@@ -177,9 +189,15 @@ where the hook was never wired in.
 
 ## References
 
-**Core, every engagement:** `references/shared-rules.md` · `methodology.md` · `judging.md` ·
-`xray.md` · `dispatch.md` · `scope-intake.md` · `knowledge.md` · `crossover.md` ·
-`report-formatting.md` · `cvss-guide.md` · `local-tooling.md`.
+| Group | Files | When |
+|---|---|---|
+| **Core discipline** | `shared-rules.md` · `methodology.md` · `judging.md` · `local-tooling.md` | Turn 1, every engagement, in full |
+| **Lifecycle mechanics** | `xray.md` · `dispatch.md` · `scope-intake.md` | one per matching phase (x-ray / hunt / intake) |
+| **Knowledge + seams** | `knowledge.md` · `crossover.md` | prime phase; converge phase (≥2 packs ran) |
+| **Closing an engagement** | `report-formatting.md` · `cvss-guide.md` | prove/report phase, per C/H/M finding |
+| **Fuzz-suite support** | `property-fuzzing.md` | only when the target ships (or needs) property tests |
+
+All paths above are under `references/`.
 
 **Agents:** `agents/README.md` (the roster and bundle spec), `packs/<pack>/agents/*.md` (the
 lenses), `packs/<pack>/vectors/*.md` (the fast-recall attack catalog), `packs/<pack>/judging.md`

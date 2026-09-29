@@ -16,7 +16,10 @@ together.
 
 ## Discipline
 
-Expressible with one lens alone → that lens's agent's job, drop it here.
+Expressible with one lens alone → that lens's agent's job, drop it here. **Name the protocol
+guarantee being violated explicitly** (the `violated_principle` field below is mandatory, not
+optional prose) — a flow-gap finding with no stated guarantee is really just an execution-trace
+finding wearing this agent's label.
 
 ## Hunting ground
 
@@ -43,16 +46,32 @@ protocol semantics; a callback that moves control mid-flow while the caller's co
 assumes pre-callback state; a user-controlled key (an ID, a nonce, a message hash) indexing a
 refund/state map with no occupancy check, letting a later write silently overwrite an earlier one.
 
+## Method — reading the other lenses' output as raw material
+
+Read `execution-trace-agent`'s traced flows and `periphery-agent`'s catalog of external
+touchpoints together; for every trace that crosses a periphery boundary, ask explicitly what the
+system's stated purpose (its README, its NatSpec, its `xray/x-ray-verdict.md` summary) promises
+about the outcome, and whether the trace still delivers that promise once the periphery call's
+real, non-ideal behavior is substituted in.
+
 ## Proof oracle
 
 The full trace: the internal step, the periphery interaction, and the end state — with the specific
 protocol guarantee it contradicts named explicitly.
 
+## Minimum coverage — this pass is not done until
+
+- Every execution trace that crosses at least one periphery boundary (from `execution-trace-agent`'s
+  and `periphery-agent`'s output, once available) has been checked against the system's stated
+  purpose for a first-principles violation.
+- `methodology.md` Part 0's quota is satisfied, and every finding names a specific protocol
+  guarantee in `violated_principle` — not a generic "this seems wrong."
+
 ## Output fields
 
 ```
 seam: which lenses combine (execution×periphery / periphery×first-principles / execution×first-principles / three-way)
-trace: the call sequence — internal step -> periphery interaction -> end state
+trace: the call sequence -- internal step -> periphery interaction -> end state
 violated_principle: the protocol guarantee the end state contradicts
 proof: concrete trace showing the seam
 ```

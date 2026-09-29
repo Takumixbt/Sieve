@@ -10,10 +10,16 @@ You are an attacker who exploits execution flow — tracing entry point to final
 encoding, storage, branching, external calls, and state transitions. Every place the code assumes
 something about execution that isn't actually enforced is your opportunity.
 
+**Trace every path a function can take, not the one that seemed most likely on first read.** A
+function with three branches has three execution traces, not one — walking only the "main" path
+and calling the function understood is exactly the shallow pass this skill exists to prevent.
+
 ## Within one transaction/instruction
 
 - **Parameter divergence.** Two or more attacker-controlled inputs whose assumed relationship
-  isn't enforced: claimed amount ≠ actually sent amount, requested asset ≠ delivered asset.
+  isn't enforced: claimed amount ≠ actually sent amount, requested asset ≠ delivered asset. List
+  every function with two or more independently-controlled parameters and check the relationship
+  between them explicitly for each one.
 - **Value leaks.** Trace every value-moving function from entry to final transfer — a fee deducted
   from one variable while the original amount is passed downstream unchanged.
 - **Encoding/decoding mismatches.** `abi.encodePacked` decoded with `abi.decode`; Borsh/Anchor
@@ -24,9 +30,14 @@ something about execution that isn't actually enforced is your opportunity.
 - **Untrusted return values.** An external call's return value used without validation; a query
   function that disagrees with the function actually used for the real operation.
 - **Stale reads.** Read a value, cause a state change or external call, then use the now-stale
-  value.
+  value. Walk every variable read into a local before an external call or internal state mutation,
+  and check every later use of that local for staleness.
 - **Partial state updates.** A function that updates coupled variables but can revert or return
-  early mid-update — is the intermediate state itself exploitable?
+  early mid-update — is the intermediate state itself exploitable? Enumerate every early-return/
+  revert branch inside a multi-write function and ask what's already been written by that point.
+- **Every branch, individually walked.** For a function with N conditional branches, that's N
+  distinct execution traces. Confirm you've actually walked each one with concrete values, not
+  generalized from the branch that happened to be first.
 
 ## Across transactions/instructions
 
@@ -42,11 +53,33 @@ something about execution that isn't actually enforced is your opportunity.
 - **Cross-program invocation (Solana/Anchor):** does a CPI call re-derive and re-validate the same
   constraints the top-level instruction already checked, or does it trust the caller's earlier
   validation without re-confirming after the CPI could have changed state?
+- **Reordering across a mempool/block boundary.** For any multi-transaction flow, what does an
+  attacker gain by reordering, delaying, or sandwiching the second transaction relative to the
+  first — even when neither transaction alone is exploitable?
+
+## Tool binding
+
+`cast run`/Tenderly's transaction debugger (`local-tooling.md` 2.2) to step through a real or
+forked transaction instruction-by-instruction when a trace is hard to reconstruct by reading
+source alone. `surya graph`/`sol2uml` for the call-graph overview before hand-tracing a deeply
+nested cross-contract flow. A Foundry test that fires the exact multi-step sequence, with
+assertions after *every* step (not just the final one), is both your reasoning aid and the proof
+oracle once you have a candidate.
 
 ## Proof oracle
 
 A concrete multi-step trace (a Foundry test firing the exact call sequence, or an Anchor/Move
 integration test) with specific values at each step, ending in the impact.
+
+## Minimum coverage — this pass is not done until
+
+- Every function with 2+ conditional branches has had every branch individually traced with
+  concrete values — not just the branch that looked most interesting on the first read.
+- Every multi-step/multi-transaction flow in scope (request→execute, propose→confirm,
+  deposit→claim) has an explicit reordering/interleaving/mid-flight-mutation hypothesis tested.
+- Every external call site has an explicit "what if the return value lies" hypothesis tested.
+- `methodology.md` Part 0's quota is satisfied with execution-trace-specific hypotheses spanning
+  both the within-transaction and across-transaction categories above — not concentrated in one.
 
 ## Output fields
 

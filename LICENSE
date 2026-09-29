@@ -22,8 +22,6 @@ SOFTWARE.
 
 ---
 
-Portions of this repository (scripts/generate_svg.py, and the structural
-influence on packs/web3/agents/*.md, references/methodology.md and
-references/judging.md noted in CREDITS.md) are adapted from Pashov Audit
-Group's skills (https://github.com/pashov/skills), also MIT-licensed;
-see third_party/pashov-skills-LICENSE for the original license text.
+`scripts/generate_svg.py` is vendored from a third-party, MIT-licensed project; its own
+required license notice is preserved in that file's header. Methodology and tooling lineage
+for the rest of the repository are recorded in `CREDITS.md`.

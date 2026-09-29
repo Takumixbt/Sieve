@@ -10,9 +10,10 @@ usually the one a quick pass skips.
 
 ## Web3 — `packs/web3/agents/`
 
-Twelve lenses, structurally adapted from Pashov Audit Group's `solidity-auditor` skill
-(MIT-licensed; see `third_party/pashov-skills-LICENSE` and `CREDITS.md`), generalized past
-Solidity to every VM `xray_web3.py` discovers.
+Twelve lenses covering the full space of web3 logic bugs — arithmetic, permissions, economics,
+execution flow, invariants, peripheral code, first-principles assumptions, asymmetry, boundaries,
+and three cross-lens gap-hunters — generalized past Solidity to every VM `xray_web3.py` discovers.
+Methodology attribution: `CREDITS.md`.
 
 | Agent | ★ | Owns |
 |---|---|---|

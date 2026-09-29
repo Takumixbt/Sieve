@@ -1,39 +1,27 @@
 # Credits
 
-Sieve builds directly on the published, permissively-licensed work of others. Where content is
-adapted rather than newly written, it's named here and, where practical, in the file itself.
+Where this skill's method or code was shaped by outside work, it's recorded here — once, in one
+place — rather than scattered through the working reference files.
 
-## Pashov Audit Group — `github.com/pashov/skills` (MIT)
+## Methodology lineage
 
-The single biggest influence on this skill's shape. Vendored directly: `scripts/generate_svg.py`,
-the architecture-diagram generator (`third_party/pashov-skills-LICENSE` carries the original MIT
-license text). Structurally adapted, with attribution in each file's frontmatter comment where it
-applies: the twelve `packs/web3/agents/*.md` lenses (generalized past Solidity to Move/Anchor/
-Cairo/Vyper), the Feynman/Socratic/Inversion mental tools in `references/methodology.md`, the
-four-gate core of `references/judging.md`, and the grep-then-read x-ray method in
-`references/xray.md`. Their `solidity-auditor` and `x-ray` skills remain the sharper tool for
-Solidity-only work; Sieve exists for the targets those tools don't cover (multi-VM web3, web,
-binary/mobile) and the seams between them.
+The three-tool reading discipline in `references/methodology.md` (explain-in-plain-language first,
+then interrogate every assumption, then invert the check) and the sequential-gate shape of
+`references/judging.md` draw on established audit practice in the smart-contract security
+community, most directly [Pashov Audit Group's public skills](https://github.com/pashov/skills)
+(MIT). `scripts/generate_svg.py` is vendored from that same source, MIT-licensed; its required
+license notice is preserved in the file's own header.
 
-## Cyfrin / Solodit — `solodit.cyfrin.io`
+## Knowledge base
 
-The web3 precedent database `references/knowledge.md` and `sieve kb search --online` are built
-around. API details in `references/local-tooling.md` and `sieve/kb_net.py`.
+[Cyfrin / Solodit](https://solodit.cyfrin.io) — the web3 precedent database `references/knowledge.md`
+and `sieve kb search --online` are built around. [OSV.dev](https://osv.dev) — the dependency
+vulnerability lookup behind `sieve kb osv`, no key required.
 
-## Prior art that shaped the design, not vendored
+## Tools this skill drives but does not vendor
 
-- **Trail of Bits — `github.com/trailofbits/skills`** — the plugin-catalog structure for
-  security-research skills more broadly.
-- **Invariant Helix** and **BountyForge** (community skills) — the x-ray-as-executive-summary
-  pattern, the crossover/seam-hunting concept (`references/crossover.md`), the persistence/
-  "wild-mode" doctrine that shaped `references/shared-rules.md`'s anti-laziness section and the
-  Stop-hook enforcement in `sieve/hook.py`, and the multi-gate judge concept that informed
-  `references/judging.md`'s six-gate sequence.
-
-## Open-source tools this skill orchestrates but does not vendor
-
-Burp Suite, subfinder, httpx, katana, nuclei, ffuf, gau, dalfox, sqlmap, Slither, Aderyn, Foundry,
-Echidna, Medusa, Mythril, Semgrep, Ghidra, radare2, AFL++, Frida, objection, jadx, apktool, MobSF —
-full list and licenses at each project's own repository, linked from
-`references/local-tooling.md`. None of their code is included here; Sieve only teaches an agent how
-to drive them and how to read their output.
+Every tool named in `references/local-tooling.md` (Burp Suite and its extensions, the
+ProjectDiscovery toolchain, Slither, Aderyn, Foundry, Echidna, Medusa, Ghidra, radare2, Frida, and
+the rest) is the operator's own install, under its own license, linked from that file. None of
+their code is included here — this skill only teaches an agent how to drive them and how to read
+what they produce.

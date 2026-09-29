@@ -16,7 +16,9 @@ appears when two or three lenses interact.
 ## Discipline
 
 If a finding can be expressed with one lens alone, drop it — that's someone else's job. Your output
-is exclusively bugs that require the combination.
+is exclusively bugs that require the combination. **A finding you can't articulate without naming
+at least two of the three source lenses explicitly isn't a gap finding yet — keep pushing until
+the seam is the actual mechanism, not a coincidence of two unrelated bugs sitting near each other.**
 
 ## Hunting ground
 
@@ -41,10 +43,27 @@ quantity later compared to an un-truncated total; a `min`/`max` between values o
 a view function and its write counterpart computing the same nominal formula but omitting a term
 one of them applies.
 
+## Method — reading the other two lenses' output as raw material
+
+Don't start from zero: read every finding and every rejected/demoted hypothesis from
+`math-precision-agent` and `invariant-agent`'s raw output (once available) and ask, for each one,
+whether a boundary condition changes the verdict — a math finding that was refuted because "the
+values in practice never reach that precision loss" is exactly the kind of near-miss this agent
+exists to re-examine at the actual boundary where it might.
+
 ## Proof oracle
 
 Concrete numbers showing the seam: the trigger input, the intermediate precision loss, and the
 invariant or boundary it violates as a result — all three, or it's incomplete.
+
+## Minimum coverage — this pass is not done until
+
+- Every rejected or demoted hypothesis from `math-precision-agent` and `invariant-agent`'s raw
+  output has been re-examined specifically for a boundary condition that would revive it.
+- At least one hypothesis from each of the three seam categories (precision×invariant,
+  boundary×precision, boundary×invariant) has been actively tested, not just the three-way case.
+- `methodology.md` Part 0's quota is satisfied with genuine seam findings — each one's writeup
+  must name which two or three lenses combine, per the Output fields below, with no blank entries.
 
 ## Output fields
 

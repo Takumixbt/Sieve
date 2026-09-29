@@ -1,10 +1,10 @@
 """Web3 x-ray: mechanical facts only — discovery, nSLOC, test inventory, and a grep-only
 entry-point scan across VMs.
 
-This deliberately does NOT parse or classify code. Pashov's x-ray proved the right split:
-grep is the source of truth for *which lines are candidate entry points* (cheap, exact,
-language-agnostic), and the agent reads the source to classify each one (permissionless /
-role-gated / admin), verified by re-reading the exact `file:line` this scan names. A Python
+This deliberately does NOT parse or classify code. Grep is the source of truth for *which lines
+are candidate entry points* (cheap, exact, language-agnostic), and the agent reads the source to
+classify each one (permissionless / role-gated / admin), verified by re-reading the exact
+`file:line` this scan names. A Python
 parser that tried to do the classification would be re-implementing Slither/Aderyn worse than
 they do it — run those instead (see references/local-tooling.md) and treat their findings as
 corroborating leads, the same way a Solodit precedent is a lead: real, but gated before it ships.
@@ -28,10 +28,10 @@ RUST_FRAMEWORKS = [("anchor", r"anchor_lang|#\[program\]"), ("cosmwasm", r"cosmw
 COMMENT_LINE = {"solidity": r"^\s*(//|/\*|\*|\*/)", "rust": r"^\s*(//|/\*|\*|\*/)",
                 "vyper": r"^\s*#", "move": r"^\s*(//|/\*|\*|\*/)", "cairo": r"^\s*(//|/\*|\*|\*/)"}
 
-# One POSIX-portable pattern per language, in pashov's spirit: cheap, exact, verified by re-reading
-# the line, never trusted as a classification. Multi-line Solidity signatures need the second pass
-# pashov's x-ray also runs (closing-paren-on-its-own-line); the other languages here don't commonly
-# wrap a visibility/decorator across lines, so one pattern each is enough.
+# One POSIX-portable pattern per language: cheap, exact, verified by re-reading the line, never
+# trusted as a classification. Multi-line Solidity signatures need a second pass (closing-paren-
+# on-its-own-line); the other languages here don't commonly wrap a visibility/decorator across
+# lines, so one pattern each is enough.
 ENTRY_PATTERNS: Dict[str, List["re.Pattern[str]"]] = {
     "solidity": [
         re.compile(r"function\s+\w+\s*\([^)]*\)\s+(external|public)"),
@@ -98,8 +98,8 @@ def discover(root: str, src_dirs: List[str]) -> Tuple[List[Dict[str, str]], List
 
 def nsloc(text: str, lang: str) -> int:
     """Non-blank lines minus lines that START with a comment marker. Deliberately crude — the
-    same heuristic pashov's enumerate.sh uses (a real comment-stripper is not worth the weight
-    for a number that only orders review priority)."""
+    same crude-but-cheap heuristic real nSLOC tools use as a first pass (a full comment-stripper is
+    not worth the weight for a number that only orders review priority)."""
     marker = COMMENT_LINE.get(lang, r"^\s*(//|#)")
     n = 0
     for ln in text.split("\n"):

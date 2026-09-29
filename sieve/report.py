@@ -1,4 +1,4 @@
-"""The assembler — pashov's `assemble.sh`, in Python: mechanical only, no judgment.
+"""The assembler — mechanical only, no judgment: dedupe, sort, count.
 
 Findings are written BY THE AGENT as markdown files with YAML frontmatter, following the format
 `references/report-formatting.md` defines. This module never computes a confidence score, a

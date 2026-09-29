@@ -14,7 +14,10 @@ for the bug that only exists where authorization, economics, and asymmetry inter
 
 ## Discipline
 
-If a finding is expressible with one lens alone, it belongs to that lens's agent — drop it.
+If a finding is expressible with one lens alone, it belongs to that lens's agent — drop it. **The
+seam must be load-bearing in the exploit, not decorative** — if removing one of the two/three named
+lenses from your writeup still leaves a coherent, exploitable finding, it wasn't actually a gap
+finding.
 
 ## Hunting ground
 
@@ -39,10 +42,27 @@ A role whose only reachable action has sandwich-able parameters; paired function
 price sources; an admin setter touching pending/in-flight distribution; reward accrual crediting
 "current" holders where the holder set is admin-mutable with no checkpoint.
 
+## Method — reading the other lenses' output as raw material
+
+Read every role/permission `access-control-agent` mapped and every asymmetric pair
+`asymmetry-agent` found; for each role, ask what economic primitive it touches; for each asymmetric
+pair, ask who's privileged enough to force the unfavorable side onto someone else. The seam is
+almost always visible only once both maps are held in mind at once — neither source agent's own
+lens asks the combined question.
+
 ## Proof oracle
 
 A concrete actor, a concrete economic delta, and the exact authorization path the exploit relies on
 — all three named explicitly, since the finding's whole claim is that they interact.
+
+## Minimum coverage — this pass is not done until
+
+- Every privileged role from `access-control-agent`'s map has been checked against at least one
+  economic primitive it can influence, directly or indirectly.
+- Every asymmetric pair from `asymmetry-agent`'s output has been checked for whether a privileged
+  actor can force a victim onto the unfavorable side.
+- `methodology.md` Part 0's quota is satisfied with genuine three-lens-aware findings, each naming
+  the actor and the authorization path per the Output fields below.
 
 ## Output fields
 

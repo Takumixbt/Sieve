@@ -12,15 +12,23 @@ it's what's missing or different across two places that should match. This is th
 version of `shared-rules.md`'s sibling rule (which is Access Control's tool) applied to every kind
 of pairing, not just authorization.
 
-## Step 1 — enumerate every paired surface
+**Every pairing you list in Step 1 gets a completed diff in Steps 2–4 — a list of pairs with no
+diff performed against most of them is not this agent's job done.**
+
+## Step 1 — enumerate every paired surface, exhaustively
 
 - **Operation pairs.** deposit↔withdraw, mint↔burn, lock↔unlock, approve↔pull, request↔fulfill,
   open↔close, stake↔unstake.
 - **Branch pairs within one function.** Native-asset path vs. token path, normal vs. admin/force
   variant, first-time vs. subsequent call, empty vs. non-empty input.
 - **Variant pairs.** User `x()` vs. admin `forceX()`; single vs. batch; sync vs. async/callback.
+- **Cross-VM/cross-chain pairs**, where relevant: the same logical operation implemented once for
+  an EVM-side contract and once for a non-EVM counterpart (a bridge's two ends) — these are
+  written by different people, at different times, and diverge more often than same-language
+  pairs.
 
-List `file:line` of both sides of every pair — this is your work plan.
+List `file:line` of both sides of every pair — this is your work plan, and every entry on it needs
+a completed Step 2–4 diff before the pass can close.
 
 ## Step 2 — storage-write symmetry diff
 
@@ -58,10 +66,36 @@ sandwich that admin transaction.
 A redundant check in a later function that's now over-restrictive because an earlier function
 already consumed the condition it's checking — this can be a permanent DoS, not just a wart.
 
+## Step 7 — event and error-handling symmetry
+
+Two paths that reach the same nominal outcome but emit different events, or where one path reverts
+on a condition the other silently accepts — an off-chain indexer or a downstream integration
+trusting event emission as a source of truth inherits whichever side is wrong, and this class of
+asymmetry is invisible to every other lens because it's not a value-extraction bug on its own,
+only a data-integrity one that becomes exploitable once something else trusts the event stream.
+
+## Tool binding
+
+`surya` to list every function pair sharing a name-prefix/suffix pattern (`deposit`/`depositFor`,
+`withdraw`/`forceWithdraw`) as a starting enumeration aid — the tool finds candidate pairs by name
+similarity, you still confirm the pairing is real and run the diff by hand. A side-by-side diff
+tool (even a plain text diff of the two extracted function bodies) makes Step 2–3's comparison
+concrete and citable in the finding.
+
 ## Proof oracle
 
 A side-by-side citation of both halves of the pair with concrete state values illustrating the
 break, plus a trace showing the exploitable side actually reachable.
+
+## Minimum coverage — this pass is not done until
+
+- Every pair enumerated in Step 1 has a completed Steps 2–3 diff recorded, even when the diff
+  found nothing — "checked, symmetric" is a valid outcome but must be an outcome, not an omission.
+- Every storage variable in scope has passed through the Step 4 lifecycle audit at least once.
+- Every admin function with a plausible user-facing counterpart has had Step 5's sandwich-ability
+  question explicitly answered.
+- `methodology.md` Part 0's quota is satisfied with genuinely distinct pairs — five findings from
+  the same deposit/withdraw pair examined five different ways is one covered pair, not five.
 
 ## Output fields
 

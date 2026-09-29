@@ -1,7 +1,0 @@
-{"openapi": "3.0.0", "security": [{"bearer": []}],
- "paths": {
-  "/v1/invoices/{invoiceId}": {"get": {"summary": "read invoice"}},
-  "/v1/invoices": {"post": {"requestBody": {"content": {"application/json": {"schema": {"properties": {"amount": {}, "currency": {}, "customerId": {}}}}}}}},
-  "/v1/public/status": {"get": {"security": []}},
-  "/api/users/{userId}": {"get": {"summary": "dup of express route"}}
- }}

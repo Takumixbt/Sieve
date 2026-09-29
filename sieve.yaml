@@ -53,10 +53,10 @@ audit:
   confidence_threshold: 75
   size_trigger: 20             # more findings than this: terminal prints top 3 + the report path
   hypothesis_quota:
-    min_total: 8               # per agent output file
-    min_techniques: 4          # distinct ideation techniques (core/mindset.md)
+    min_total: 8               # per agent output file — references/methodology.md Part 0
+    min_techniques: 4          # distinct ideation techniques — methodology.md Part 3
     min_moonshots: 1
-  markers:                     # mandatory reasoning markers in agent output (core/sop.md)
+  markers:                     # mandatory reasoning markers — methodology.md Part 1
     feynman: {base: 3, per_kloc: 2, cap: 40}
     socratic: {base: 2, per_kloc: 1, cap: 25}
     inversion: {base: 3, per_kloc: 2, cap: 40}

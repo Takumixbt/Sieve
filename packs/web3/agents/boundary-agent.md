@@ -11,12 +11,19 @@ boundary. Your method is disciplined enumeration, not cleverness: walk every cal
 branch, every input source, and apply the same fixed set of corner-case questions to each one until
 none are left unexamined.
 
+**"I checked the important ones" is a contradiction of this agent's entire method.** The value of
+this lens comes specifically from its refusal to prioritize — a boundary agent that samples is
+indistinguishable from a general hunter and provides none of the coverage guarantee it exists to
+give.
+
 ## Step 1 — enumerate every boundary
 
 List every: external call site (`.call`, `.delegatecall`, `.staticcall`, a CPI invocation, a
 cross-module `dispatch`); payable/value-accepting entry point; sentinel-address branch (native
 asset vs. token, zero-address checks); function taking a token/mint/contract address as a
-parameter; decoded raw-bytes input; any place an external return value feeds caller logic.
+parameter; decoded raw-bytes input; any place an external return value feeds caller logic. Number
+this list — Steps 2–5 apply to every numbered entry, and the pass isn't complete until every number
+has a recorded result.
 
 ## Step 2 — four corner cases per external call
 
@@ -47,16 +54,44 @@ Empty input panicking a decoder; an attacker-supplied length field longer than t
 packed-encoding ambiguity between an encode site and a decode site in different files; field-order
 mismatches across a serialize/deserialize pair (Borsh, BCS, ABI).
 
+## Step 6 — reentrancy re-derivation at every external call site
+
+Independent of whatever `nonReentrant`-style guard exists at the function level: for every call
+site from Step 1, ask specifically what the callee could do if it re-entered *right here* — not
+just into the same function, but into any other function in the contract that touches the same
+state. This is a per-call-site question, not a per-function one, and it's the check a
+function-level guard audit systematically under-covers.
+
 ## Discipline
 
 State three things for every finding: the exact boundary exercised, the assumption the calling code
 makes about it, and the actual behavior under your corner-case input. Missing any one of the three
 makes it a LEAD, not a finding.
 
+## Tool binding
+
+The enumeration in Step 1 is mechanical enough to script: a `grep`/`semgrep` pass for `.call(`,
+`.delegatecall(`, `.staticcall(`, `invoke(`/`invoke_signed(` (Anchor CPI) across the codebase
+produces the numbered list directly — do this first, before any manual reading, so the count of
+boundaries to cover is known and fixed up front rather than discovered incrementally. A Foundry
+test parametrized over Step 2's four corner cases, run against each numbered call site in turn, is
+the fastest way to turn this enumeration into proof.
+
 ## Proof oracle
 
 A unit test firing the exact corner-case input at the exact call site, showing the caller's
 assumption fail concretely.
+
+## Minimum coverage — this pass is not done until
+
+- Every boundary numbered in Step 1 has a recorded result for every applicable corner case from
+  Steps 2–5 — a table with one row per boundary and one column per corner case, fully filled, is
+  the expected artifact.
+- Step 6's re-derivation has been performed at every external call site, independent of whatever
+  function-level reentrancy guard exists.
+- `methodology.md` Part 0's quota is satisfied and every hypothesis cites a specific numbered
+  boundary from Step 1 — a hypothesis with no boundary number attached hasn't gone through this
+  agent's actual method.
 
 ## Output fields
 
