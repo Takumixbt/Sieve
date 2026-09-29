@@ -48,6 +48,24 @@ class Web3XrayTests(unittest.TestCase):
         text = "// header\nfunction f() {\n  x = 1;\n}\n/* block */\n"
         self.assertEqual(X.nsloc(text, "solidity"), 3)  # blanks out and //-leading and /*-leading only
 
+    def test_tool_leads_are_reshaped_not_reanalysed(self):
+        facts = X.run(FIXROOT, slither_json=os.path.join(FIXROOT, "slither.json"),
+                      aderyn_json=os.path.join(FIXROOT, "aderyn.json"))
+        by_source = {}
+        for lead in facts["tool_leads"]:
+            by_source.setdefault(lead["source"], []).append(lead)
+        self.assertEqual(by_source["slither"][0]["check"], "reentrancy-eth")
+        self.assertEqual(by_source["slither"][0]["file"], "src/Vault.sol")
+        self.assertEqual(by_source["slither"][0]["line"], 60)
+        self.assertEqual({l["check"] for l in by_source["aderyn"]},
+                         {"Centralization risk for privileged owner", "Unsafe casting"})
+        self.assertEqual(facts["notes"], [])
+
+    def test_tool_lead_bad_file_is_a_note_not_a_crash(self):
+        facts = X.run(FIXROOT, slither_json="/no/such/file.json")
+        self.assertEqual(facts["tool_leads"], [])
+        self.assertTrue(facts["notes"])
+
 
 if __name__ == "__main__":
     unittest.main()

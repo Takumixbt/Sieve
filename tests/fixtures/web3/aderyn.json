@@ -1,0 +1,13 @@
+{
+  "high_issues": {"issues": [
+    {"title": "Centralization risk for privileged owner",
+     "description": "Owner can call sensitive functions without a timelock.",
+     "instances": [{"contract_path": "src/Vault.sol", "line_no": 74}]}
+  ]},
+  "medium_issues": {"issues": [
+    {"title": "Unsafe casting",
+     "description": "A downcast truncates without a bounds check.",
+     "instances": [{"contract_path": "src/Vault.sol", "line_no": 22}]}
+  ]},
+  "low_issues": {"issues": []}
+}

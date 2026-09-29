@@ -166,7 +166,39 @@ def _subsystem(path: str, src_dirs: List[str]) -> str:
     return parts[0] if len(parts) > 1 else "(root)"
 
 
-def run(root: str, src_dirs: Optional[List[str]] = None) -> Dict[str, Any]:
+def _slither_leads(path: str) -> List[Dict[str, Any]]:
+    """Slither's own `--json` output, reshaped into leads. Field names come straight from
+    Slither's schema — never re-derived — so a schema change surfaces as a KeyError, not silence."""
+    import json
+    data = json.loads(util.read_text(path))
+    out: List[Dict[str, Any]] = []
+    for d in (data.get("results") or {}).get("detectors", []):
+        elem = (d.get("elements") or [{}])[0]
+        loc = (elem.get("source_mapping") or {})
+        lines = loc.get("lines") or []
+        out.append({"source": "slither", "check": d.get("check", ""), "impact": d.get("impact", ""),
+                    "confidence": d.get("confidence", ""), "description": (d.get("description", "") or "")[:400],
+                    "file": loc.get("filename_relative", ""), "line": lines[0] if lines else 0})
+    return out
+
+
+def _aderyn_leads(path: str) -> List[Dict[str, Any]]:
+    """Aderyn's own `--output json` report, reshaped the same way as Slither's."""
+    import json
+    data = json.loads(util.read_text(path))
+    out: List[Dict[str, Any]] = []
+    for severity_key in ("high_issues", "medium_issues", "low_issues"):
+        for issue in (data.get(severity_key) or {}).get("issues", []):
+            for inst in issue.get("instances", [{}]):
+                out.append({"source": "aderyn", "check": issue.get("title", ""),
+                            "impact": severity_key.replace("_issues", ""), "confidence": "",
+                            "description": (issue.get("description", "") or "")[:400],
+                            "file": inst.get("contract_path", ""), "line": inst.get("line_no", 0)})
+    return out
+
+
+def run(root: str, src_dirs: Optional[List[str]] = None, slither_json: Optional[str] = None,
+        aderyn_json: Optional[str] = None) -> Dict[str, Any]:
     root = os.path.abspath(root)
     dirs = src_dirs or detect_src_dirs(root)
     files, skipped = discover(root, dirs)
@@ -176,7 +208,17 @@ def run(root: str, src_dirs: Optional[List[str]] = None) -> Dict[str, Any]:
         f["nsloc"] = nsloc(util.read_text(os.path.join(root, f["path"])), f["lang"])
         total += f["nsloc"]
         by_sub[_subsystem(f["path"], dirs)] += f["nsloc"]
+    leads: List[Dict[str, Any]] = []
+    notes: List[str] = []
+    for path, loader, name in ((slither_json, _slither_leads, "slither"), (aderyn_json, _aderyn_leads, "aderyn")):
+        if not path:
+            continue
+        try:
+            leads += loader(path)
+        except (OSError, ValueError, KeyError) as exc:
+            notes.append(f"{name} {path}: {exc}")
     return {"pack": "web3", "root": root, "generated": util.now_iso(), "src_dirs": dirs,
             "languages": sorted({f["lang"] for f in files}), "files": files, "skipped": skipped,
             "nsloc_total": total, "by_subsystem": dict(by_sub),
-            "entry_candidates": grep_entries(root, files), "tests": _tests(root)}
+            "entry_candidates": grep_entries(root, files), "tests": _tests(root),
+            "tool_leads": leads, "notes": notes}
