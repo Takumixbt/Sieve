@@ -3,13 +3,77 @@
 All notable changes to Sieve are documented here. Versioning follows
 [Semantic Versioning](https://semver.org/).
 
-## [1.4.0] — 2026-09-29
+## [2.0.0] - 2026-09-30
+
+Sieve is now the single, agent-driven audit engine: hand it a target link and the agent runs intake, scan, campaign, gates,
+proofs, report and vault without further input.
 
 ### Added
-- **Deterministic validation** (`references/validation.md`, `sieve/validate.py`, `sieve/judging.py`, `sieve/cites.py`) —
+- **`sieve scan`**: the deterministic head of every engagement (pack detection, x-ray, installed static analyzers, git-history
+  pass, static rules, knowledge-base prime, frontier seed) with no model and no traffic, ending in a measured profile
+  recommendation and the agent-run count of each profile. The campaign reuses its output while the source tree is unchanged.
+- **`lite` profile** (replaces `smoke`): the same hunt, gates and proofs with no lens fan-out, strategy node, fuzz node or
+  independence audit. `default` and `exhaustive` are unchanged in depth. `sieve campaign init` prints the agent-run count and
+  uses the scan's recommendation when no `--profile` is given.
+- **`fuzz` and `fuzz-absorb` nodes** (web3, `default` and `exhaustive`): property fuzzing of the merged invariants with
+  Echidna, Medusa or Foundry invariant tests under a `fuzz@1` contract that demands anti-vacuity evidence for every green result
+  and a shrunk call sequence for every break. Breaks and harness gaps become frontier rows the drain must close with a receipt.
+- **`browser-recon` node** and `scripts/browser-recon.py`: live-client recon through CloakBrowser (XHR, WebSocket frames,
+  storage, forms) for every in-scope URL. Fence-checked in code, active-testing-gated, navigation-guarded (a refused
+  main-frame navigation is answered with 204 so the page is never replaced), persistent test identity, optional Burp proxy.
+  A missing browser or unreachable proxy is recorded as coverage debt.
+- **`sieve kb ingest` and `sieve kb sources`**: a keyless precedent tier of 70k rows from public sources (DeFiHackLabs, a
+  smart-contract vulnerability reference, Code4rena findings, HackerOne disclosures, PayloadsAllTheThings, CISA KEV, Exploit-DB
+  and OSV including OSS-Fuzz fix commits). Searched alongside your own cards, ranked below them, never written into the vault as
+  files. Solodit becomes optional and is skipped silently without a key.
+- **One Obsidian vault** for the knowledge base and every engagement (`sieve vault init | export | path`), with per-engagement
+  note namespaces, a root note, class hubs shared across engagements, an assembled report note, and a per-invariant coverage state
+  (`broken`, `clean`, `dead-end`, `unprobed`) so audit gaps are visible in the graph.
+- `scripts/js-recon.py`, `scripts/race.py` (refuses to fire unless the fence lists the host and allows active testing) and
+  `scripts/secrets-sweep.sh`; `references/recon-resilience.md`, `references/vm-gates.md` and `references/solana-scan.md`.
+- **`sieve selftest`** and a `tests/` suite (about 110 tests): verdict quorum rules, the scope fence, citations, sanitizer, proof
+  refusals (echo-only, no control, vacuous control, destructive verbs, literal credentials, out-of-fence traffic), tamper and
+  forgery detection, topology validity for every profile and pack combination, KB tiers and parsers, the vault export, a live
+  CloakBrowser test against a local lab page, and two full simulated engagements (71 nodes on `default`) ending in a
+  machine-confirmed finding.
+- **`sieve preflight`**: exercises what an audit depends on instead of listing binaries. Burp's proxy and MCP ports, the BApps
+  Burp has loaded (read from its own config), CloakBrowser opening the persistent test identity (live Google session, wallet
+  extensions loaded) via `scripts/browser-recon.py --check`, the Burp and V12 MCP servers, the knowledge base, vault and Stop
+  hook, keys (presence only, never values). Every gap prints its exact fix, and the result is written to `.sieve/preflight.md`.
+  `sieve config get <key>` reads any setting.
+- **External leads** (`sieve leads add | import | list`, the `external-leads` campaign node, `xray/external-leads.md`): what V12,
+  Burp's scanner, nuclei or anyone else reports enters the work queue as open frontier rows the drain must close with a receipt,
+  never as findings. **V12 is wired as a budget-capped second opinion** (`external.v12.max_cost_cents`, `max_lines`; public code
+  only; quote first, launch only at or under the cap).
+- **Wallet extensions resolve by ID** to their newest installed version (Chrome auto-updates them into new folders, which left
+  saved paths stale); `--no-proxy` and `--check` on `browser-recon.py`.
+- **Tool detection that matches how Windows machines are really set up**: tools inside WSL, portable installs under `~/tools`
+  (JDK 21, Ghidra, jadx, with `ghidra-headless.cmd`, `ghidra.cmd`, `jadx.cmd` wrappers), winget package folders, Sieve's own venv,
+  and Burp extensions all count as installed. `sieve install` uses native Windows routes where they exist.
+- A Dataview `_Dashboard.md` in the vault (findings by severity, machine-confirmed findings, unprobed invariants).
+- Windows: `bin/sieve.cmd`, `bin/sieve.py`, and a Stop-hook command that works without a POSIX shell.
+
+### Changed
+- **One way to run an engagement.** `SKILL.md` is the agent's script: intake from the link, scan, campaign loop, report, learn.
+  The hand-driven pass commands remain as the machinery underneath (`references/dispatch.md`).
+- `campaign.yml`: `seed` waits for the x-ray narrative in every profile; `drain` waits for the fuzzer.
+- `sieve prove` commands run under the first POSIX shell found (Git for Windows' `sh` on Windows) and receive the environment
+  variables a Windows child process needs.
+
+### Fixed
+- **Windows: every sealed proof read back as tampered.** Text-mode writes turned LF into CRLF after the receipt hash was taken.
+  All engine writes are now LF.
+- **Windows: no proof could execute** (`/bin/sh` was hard-coded).
+- The lean profile ran the seed node before the x-ray narrative existed.
+- The fence treated `paths: ["."]` as matching nothing.
+
+## [1.4.0] - 2026-09-29
+
+### Added
+- **Deterministic validation** (`references/validation.md`, `sieve/validate.py`, `sieve/judging.py`, `sieve/cites.py`) -
   a finding is CONFIRMED by a machine, not by narration. `sieve prove run` executes the PoC N times, requires a stable
   exploit signature and a **negative control** that stays silent (ideally `--control-patch`: the *same command* re-run against a
-  patched copy of the target — a PoC that ignores the target cannot stop when the code is fixed), refuses echo-only "PoCs",
+  patched copy of the target - a PoC that ignores the target cannot stop when the code is fixed), refuses echo-only "PoCs",
   destructive verbs, literal credentials and out-of-fence traffic, pins the PoC and cited-source hashes, and writes an
   HMAC-sealed receipt to a hash-chained ledger. `sieve verify [--rerun]` re-reads every citation by code, detects drift
   (`stale`), regressions and tampering. `sieve judge` grew stages (`cleared` for Gates 0-5, `confirmed`/`trace-only` for
@@ -17,11 +81,11 @@ All notable changes to Sieve are documented here. Versioning follows
   demotes), the confidence threshold, and refuses `confirmed` without a passing receipt.
 - **The report prints the machine's tier** (confirmed · trace-verified · unvalidated · stale · tampered · rejected · lead)
   and ignores an agent's own `status:` line; each confirmed finding shows its oracle, repeats, control kind and measured values.
-- **The hunt pipeline commands the docs always promised** — `sieve bundle` (prints every bundle's size), `dispatch`
+- **The hunt pipeline commands the docs always promised** - `sieve bundle` (prints every bundle's size), `dispatch`
   (verifies bundle integrity, `--sequential` for no-fanout), `rollcall` (finished? quotas? markers?), `merge` (deterministic
   checks; demotes proofless / hedged / mis-cited FINDINGs to LEADs, never promotes), `absorb` (frontier rows close only with
   receipts), `frontier seed`, plus the roaming pass (`bundle --roaming`). Step order is enforced.
-- **The campaign engine** (`references/campaign.md`, `campaigns/`, `sieve campaign …`) — an ultrafuzz-shaped, topology-driven
+- **The campaign engine** (`references/campaign.md`, `campaigns/`, `sieve campaign …`) - an ultrafuzz-shaped, topology-driven
   static-analysis campaign: nodes of kind meta / agentic / reference, `repeat` and `matrix` expansion, profiles
   (smoke/default/exhaustive), exactly one primary output per node, versioned artifact contracts validated before a node is done,
   a threat-model → goal-plan chain, eight independent invariant lenses fanned in, a dynamic strategy node, looped roster
@@ -43,28 +107,28 @@ All notable changes to Sieve are documented here. Versioning follows
   `frontier seed`, `sieve run`) and a never-written `sieve.cli_findings`; `sieve pass` skipped the bundle step.
 - The report counted every FINDING file as confirmed regardless of evidence.
 
-## [1.3.0] — 2026-09-29
+## [1.3.0] - 2026-09-29
 
 ### Added
-- **`references/hypothesis-craft.md`** — the thinking half of the method: a hypothesis standard
+- **`references/hypothesis-craft.md`** - the thinking half of the method: a hypothesis standard
   (assumption / break / observable / cheapest test / why-unseen), invariants derived through eight
   independent lenses then merged (with anti-vacuity checks and independent-reference audits, taken
   from `monad-developers/ultrafuzz`'s property-design pipeline), an eight-point asymmetry checklist,
   the three ledgers of history (precedent, the target's own fix-commits and prior-audit exclusions,
-  your own lessons), and the **roaming pass** — a final hunt for classes no lens was looking for.
-- **Bright lines vs. open ground** (`shared-rules.md`, `SKILL.md`) — an explicit contract: comply
+  your own lessons), and the **roaming pass** - a final hunt for classes no lens was looking for.
+- **Bright lines vs. open ground** (`shared-rules.md`, `SKILL.md`) - an explicit contract: comply
   exactly with the fence, cite-or-drop, proof-or-lead, the gates, and receipts; think freely
   everywhere else ("creativity is spent on hypotheses, never on evidence"). Plus concrete
   hallucination **tripwires** (unseen names, flags from memory, IDs, numbers, "it doesn't exist",
   hedge words, stale conclusions) and `methodology.md` Part 6b, five things to do when you feel done.
-- **Real Obsidian wiring** — `sieve vault init` turns `~/.sieve/kb` into a vault (graph colours, one
+- **Real Obsidian wiring** - `sieve vault init` turns `~/.sieve/kb` into a vault (graph colours, one
   note per vector card, class/domain hubs) and every KB card now carries `[[wikilinks]]`; `sieve vault
   export` writes an engagement as a linked graph (components, `INV-n` invariants, findings, dead ends
   with their ladder rungs, hypotheses). `sieve/vault.py`, `sieve/cli_vault.py`.
-- **A lessons ledger** — `sieve kb lesson` (false-positive / miss / revived / technique);
+- **A lessons ledger** - `sieve kb lesson` (false-positive / miss / revived / technique);
   `kb writeback` records killed hypotheses as dead-end lessons; `kb prime` surfaces your lessons for
   the engagement's packs before the hunt starts.
-- **`sieve install <prereq|web|web3|web3-chains|binary>`** — prints (or, with `--run`, executes) the
+- **`sieve install <prereq|web|web3|web3-chains|binary>`** - prints (or, with `--run`, executes) the
   install command for every tool, read from the roster table; `sieve doctor` reads the same table
   and now finds tools in `~/.cargo/bin`, `~/go/bin`, `~/.foundry/bin` etc. before `PATH` refreshes.
 
@@ -74,7 +138,7 @@ All notable changes to Sieve are documented here. Versioning follows
   dozen CLIs; sqlmap remains only as confirmation. An explicit "not listed on purpose" section stops
   the roster creeping back. Every agent's Tool binding updated to match.
 - **Agent openers reframed** from "you are an attacker who exploits X" to "you audit X the way an
-  adversary would" — authorization-forward and precise, with every technique, checklist, and
+  adversary would" - authorization-forward and precise, with every technique, checklist, and
   minimum-coverage requirement unchanged.
 - `SKILL.md` tightened and re-sequenced around the new turns (hypothesis-craft in Turn 1, lessons in
   Turn 4, roaming pass before convergence in Turn 5, post-mortem + vault export in Turn 10);
@@ -92,16 +156,16 @@ All notable changes to Sieve are documented here. Versioning follows
 - Tools with no distinct job left after Burp MCP and the lean roster (ZAP, mitmproxy, nikto, hydra,
   dalfox, jwt_tool, mythril, Wake, surya, ItyFuzz, Certora, standalone gadget finders, and others).
 
-## [1.2.0] — 2026-09-29
+## [1.2.0] - 2026-09-29
 
 ### Added
 - **`sieve xray web3` now auto-invokes `slither`, `aderyn`, and (when installed) `trailmark`
-  itself** — static analysis and call-graph construction are the mechanical layer's own first
+  itself** - static analysis and call-graph construction are the mechanical layer's own first
   move, not corroboration the operator supplies after the fact (`references/xray.md` Phase 0,
   `sieve/xray_web3.py`). Cross-tool corroboration is now a mechanical field on every tool lead:
-  `corroborated: true` when 2+ independent detector engines flag overlapping `file:line` —
+  `corroborated: true` when 2+ independent detector engines flag overlapping `file:line` -
   meaningfully higher confidence than either tool alone, surfaced in the printed x-ray summary.
-- **A new `ai-native-appsec-agent`** in the web pack — prompt injection (direct, indirect,
+- **A new `ai-native-appsec-agent`** in the web pack - prompt injection (direct, indirect,
   multi-modal, hidden-Unicode), insecure LLM output handling, MCP/plugin supply chain, agent
   memory/RAG poisoning, toxic tool-call composition, and guardrail bypass, with a proof-oracle
   discipline built specifically to avoid an agent's self-report counting as evidence. Added after
@@ -109,10 +173,10 @@ All notable changes to Sieve are documented here. Versioning follows
   in one quarter, EchoLeak, Anthropic's own 31.5% pre-mitigation browser-agent hijack-rate
   disclosure) rather than speculative.
 - **68 new vector cards** (up from 14) distilled from real, named, dated 2026 incidents across all
-  three packs — `packs/<pack>/vectors/2026-incident-patterns.md` — plus
+  three packs - `packs/<pack>/vectors/2026-incident-patterns.md` - plus
   `packs/web/vectors/ai-native-appsec.md` and `packs/web3/vectors/cross-chain-and-altvm.md`
   (Algorand/Substrate/TON/Cosmos-SDK patterns, a previously uncovered chain surface).
-- **`references/methodology.md` Part 8** — nine mindset lessons distilled from how real 2026
+- **`references/methodology.md` Part 8** - nine mindset lessons distilled from how real 2026
   incidents were actually found (read what an audit excluded; the patch diff is the disclosure;
   ask what a boundary actually captures; compute cost-to-attack vs. value-at-risk; which layer has
   ultimate authority; score composability, not components in isolation; new capability amplifies
@@ -135,16 +199,16 @@ All notable changes to Sieve are documented here. Versioning follows
 ### Design notes for future maintainers
 - The ultrafuzz-inspired proposal to wrap the static-analysis pass in a full topology-file-driven
   multi-node campaign (mirrored from `monad-developers/ultrafuzz`'s real architecture) was
-  deliberately *not* built as a generic orchestration engine — that's the same overbuild mistake
+  deliberately *not* built as a generic orchestration engine - that's the same overbuild mistake
   `[1.0.0]`'s design note already warns about, just with a fuzzing-campaign shape instead of a
   parser shape. What shipped instead is proportionate: auto-run the tools that are actually safe
   and fast to auto-run, corroborate their output mechanically, and document (never automate) the
   slow/judgment-heavy step of targeting `mythril` at invariant-flagged functions.
 
-## [1.1.0] — 2026-09-29
+## [1.1.0] - 2026-09-29
 
 ### Changed
-- `references/local-tooling.md` expanded into a full brainstorm — every discovery, static,
+- `references/local-tooling.md` expanded into a full brainstorm - every discovery, static,
   dynamic, exploit-development, and reporting tool worth knowing per pack, not just a starter
   list.
 - Every agent file across all three packs deepened substantially: concrete commands tied to the
@@ -160,40 +224,40 @@ All notable changes to Sieve are documented here. Versioning follows
 ### Removed
 - The `tests/` suite and `third_party/` directory. The Python CLI's own correctness is now
   self-checked by `sieve lint` (content) and `sieve doctor` (environment) rather than a parallel
-  pytest tree — a skill repository should read as a skill, not as a piece of software with its
+  pytest tree - a skill repository should read as a skill, not as a piece of software with its
   engineering scaffolding on full display. (The removed suite's coverage is preserved in this
   repository's git history for anyone extending `sieve/`.)
 - Inline attribution scattered through the working reference files. Methodology and tooling
   lineage now live in one place: `CREDITS.md`.
 
-## [1.0.0] — 2026-09-29
+## [1.0.0] - 2026-09-29
 
 ### Added
-- Initial release. Three packs — web3, web, binary/mobile — each with a full agent roster
+- Initial release. Three packs - web3, web, binary/mobile - each with a full agent roster
   (`agents/README.md`), a fast-recall vector-card catalog (`packs/<pack>/vectors/*.md`), and
   pack-specific gate additions (`packs/<pack>/judging.md`).
 - The persistence engine: `.sieve/frontier.tsv` as the engagement's work queue, the stuck ladder
   (`sieve ladder`), and a Claude Code Stop hook (`sieve hooks install`) that blocks the agent from
-  ending a turn while work remains — enforced by real budgets (max blocks, no-progress release,
+  ending a turn while work remains - enforced by real budgets (max blocks, no-progress release,
   wall-clock cap), never an unbounded loop.
 - The knowledge base: local markdown cards with YAML frontmatter, a SQLite full-text index, and a
   rate-limited broker in front of Solodit and OSV so twelve parallel agents never exceed either
   API's real rate limit. `sieve kb writeback` grows the local store from every engagement's
   confirmed findings.
-- Mechanical x-ray enumerators for all three packs (`sieve xray web3|web|git`) — discovery, nSLOC,
+- Mechanical x-ray enumerators for all three packs (`sieve xray web3|web|git`) - discovery, nSLOC,
   test inventory, and (web3) a grep-only entry-point scan generalized across Solidity, Vyper,
-  Move, Anchor, and Cairo. Deliberately does not classify or parse semantics — that stays the
+  Move, Anchor, and Cairo. Deliberately does not classify or parse semantics - that stays the
   agent's job, corroborated by real tools (Slither/Aderyn) rather than a hand-rolled parser.
-- The report assembler (`sieve report`) — dedup, sort, and count over agent-written finding files;
+- The report assembler (`sieve report`) - dedup, sort, and count over agent-written finding files;
   never computes a verdict or confidence itself.
-- `references/local-tooling.md` — the real tool roster and Burp extension list per pack.
-- Vendored `scripts/generate_svg.py` (MIT) for the architecture diagram — attribution in the
+- `references/local-tooling.md` - the real tool roster and Burp extension list per pack.
+- Vendored `scripts/generate_svg.py` (MIT) for the architecture diagram - attribution in the
   file's own header and in `CREDITS.md`.
 
 ### Design notes for future maintainers
 - An earlier iteration of this skill included a hand-rolled Solidity structural parser and a
   multi-framework web route scanner. Both were removed (v1.0.0, pre-release) after review: they
   re-implemented what Slither/Aderyn and Burp/subfinder/katana already do, worse. If you're
-  tempted to rebuild either, read `CREDITS.md` and `references/local-tooling.md` first — the fix
+  tempted to rebuild either, read `CREDITS.md` and `references/local-tooling.md` first - the fix
   for "the x-ray isn't deep enough" is almost always "wire in the real tool's output," not "write
   more Python to replace it."

@@ -83,13 +83,20 @@ def _next(eng: Engagement) -> None:
 
 
 def cmd_init(args: argparse.Namespace) -> int:
+    from . import scan as scanlib
     eng = Engagement.require()
-    nodes, st = C.init(eng, args.profile, args.topology, force=args.force, resume=args.resume)
+    profile = args.profile
+    if profile is None:
+        profile = (scanlib.read_scan(eng).get("metrics") or {}).get("recommended") or "default"
+        print(f"profile: {profile} ({'recommended by `sieve scan`' if scanlib.read_scan(eng) else 'the default'}; override with --profile)")
+    nodes, st = C.init(eng, profile, args.topology, force=args.force, resume=args.resume)
     kinds: Dict[str, int] = {}
     for n in nodes:
         kinds[n["kind"]] = kinds.get(n["kind"], 0) + 1
     print(f"campaign initialised — profile {st['profile']}: {len(nodes)} node(s) "
           + "(" + ", ".join(f"{k} {v}" for k, v in sorted(kinds.items())) + ")")
+    agentic = kinds.get("agentic", 0)
+    print(f"cost: {agentic} agent run(s) to dispatch; the {kinds.get('meta', 0)} mechanical step(s) are run by the engine")
     print("topology: .sieve/campaign/topology.yml   prompts: .sieve/campaign/prompts/  (both editable)")
     _next(eng)
     return 0
@@ -354,7 +361,9 @@ def register(sub: Any) -> None:
     p = sub.add_parser("campaign", help="topology-driven static-analysis campaign (ultrafuzz-shaped)")
     cs = p.add_subparsers(dest="ccmd", required=True)
     q = cs.add_parser("init", help="create the campaign for this engagement")
-    q.add_argument("--profile", default="default", choices=["smoke", "default", "exhaustive"])
+    q.add_argument("--profile", default=None, type=lambda v: {"smoke": "lite"}.get(v, v),
+                   choices=["lite", "default", "exhaustive"],
+                   help="depth: lite | default | exhaustive (default: what `sieve scan` recommended, else default)")
     q.add_argument("--topology", help="use this topology file instead of the shipped one")
     q.add_argument("--resume", action="store_true", help="adopt an edited topology, keeping finished nodes")
     q.add_argument("--force", action="store_true", help="start over")

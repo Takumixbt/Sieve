@@ -20,7 +20,8 @@ from .state import Engagement
 
 REFERENCES = ("methodology.md", "hypothesis-craft.md", "shared-rules.md")
 XRAY_FILES = ("x-ray.md", "entry-points.md", "invariants.md", "authz-matrix.md", "attack-surface.md",
-              "threat-model.md", "goal-plan.md", "invariants-merged.md", "strategy.md", "rule-hits.md", "precedents.md")
+              "threat-model.md", "goal-plan.md", "invariants-merged.md", "strategy.md", "rule-hits.md", "precedents.md",
+              "external-leads.md", "browser-observations.md")
 INDEX_CAP = {"files": 300, "entries": 250, "leads": 120, "surface": 300, "history": 12}
 
 

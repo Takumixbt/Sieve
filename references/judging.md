@@ -1,8 +1,8 @@
-# Judging — the gate every finding must pass
+# Judging - the gate every finding must pass
 
 A raw finding is a hypothesis. This is where it becomes a result, or dies. **Discoverer ≠
 verifier**: the actor, pass, or agent that raised a finding never runs this file over its own
-work. The orchestrator (or a dedicated verifier agent, dispatched fresh — no memory of having
+work. The orchestrator (or a dedicated verifier agent, dispatched fresh - no memory of having
 found the thing) runs it after convergence. If you cannot name who discovered a finding, it isn't
 ready to be gated (see `dispatch.md`'s bundle spec).
 
@@ -14,7 +14,7 @@ kill it. Fail any gate → **REJECT** or **DEMOTE** to a lead; later gates are n
         │
         ▼
    GATE 0 ── restate in plain words, then hedge/theoretical language? ──► DEMOTE
-        │ clears — cheap pre-filter, run before the rest
+        │ clears - cheap pre-filter, run before the rest
         ▼
    TRIAGE ── straightforward or complex? ───────────────── complex → second verifier on Gates 1 & 6
         │
@@ -41,21 +41,21 @@ kill it. Fail any gate → **REJECT** or **DEMOTE** to a lead; later gates are n
 ```
 
 **How this file meets the CLI.** Gates 0–5 are a reasoning task: a verifier (never the discoverer) runs them and files
-the result — `sieve judge <id> --verdict cleared|demoted|rejected --verifier <name> --reason ...`. Complex findings need
-two distinct verifiers and any disagreement demotes (below). **Gate 6 is not a reasoning task — it is a machine check**:
+the result - `sieve judge <id> --verdict cleared|demoted|rejected --verifier <name> --reason ...`. Complex findings need
+two distinct verifiers and any disagreement demotes (below). **Gate 6 is not a reasoning task - it is a machine check**:
 `sieve prove run` executes the proof, and `sieve judge --verdict confirmed` is refused unless a sealed, passing,
 negative-controlled receipt exists. `validation.md` is the doctrine; this file stays the definition of what each gate asks.
 
-## Gate 0 — the cheap pre-filter
+## Gate 0 - the cheap pre-filter
 
 **Step one, before anything else: restate the finding in one or two plain sentences, with no
 jargon copied from the original write-up.** "The function trusts a value that can be manipulated in
-the same transaction it's read" is a restatement; "manipulatable price oracle read" is not — it's
+the same transaction it's read" is a restatement; "manipulatable price oracle read" is not - it's
 just the claim's own vocabulary repeated back. Trail of Bits' own false-positive-elimination work
 found that roughly half of false positives collapse at exactly this step: the claim stops making
 coherent sense the moment it has to be said plainly instead of in the shape it was pattern-matched
 in. If the restatement is circular, vague, or doesn't actually name an attacker action and a
-consequence, **DEMOTE before spending any more gate time on it** — this is cheaper than Gate 1 and
+consequence, **DEMOTE before spending any more gate time on it** - this is cheaper than Gate 1 and
 catches a different failure mode (an incoherent claim, not a blocked one).
 
 Then ask the one question that matters: *can an attacker do this right now, against a real user who
@@ -72,91 +72,91 @@ a reference to dead/unreachable code presented as if it were live
 
 This wording usually means the discovery pass pattern-matched a shape and described it
 defensively instead of tracing attacker → guard → consequence. **DEMOTE to a lead and send it back
-for a real trace; do not just delete the hedge words and reclassify it as a finding** — that swaps
+for a real trace; do not just delete the hedge words and reclassify it as a finding** - that swaps
 the symptom for the disease.
 
-## Triage — route by complexity, not by severity
+## Triage - route by complexity, not by severity
 
 Once Gate 0 clears, classify the finding before running Gates 1–6:
 
 - **Straightforward**: a single component, a clear mechanism, matches a known `vectors/*.md` card or
-  a named CWE pattern directly. Run the six gates as written — one verifier, normal pace.
+  a named CWE pattern directly. Run the six gates as written - one verifier, normal pace.
 - **Complex**: reaches across two or more components, the claim is ambiguous, it's a race condition,
   or there's no written spec/invariant to check the claim against (so Gate 4 will require judgment
   rather than a citation). For a complex finding, **Gate 1 (Refutation) and Gate 6 (Proof) each get a
-  second, independent pass** — a different verifier (or the same verifier on a fresh read, with no
+  second, independent pass** - a different verifier (or the same verifier on a fresh read, with no
   memory of the first pass's conclusion) re-runs just those two gates. Disagreement between the two
   passes is itself a signal: DEMOTE rather than average the two verdicts.
 
-This is a routing decision, not a severity one — a Critical finding with a clean, single-component
+This is a routing decision, not a severity one - a Critical finding with a clean, single-component
 mechanism is still straightforward; a Low finding that only makes sense as a three-component chain is
 still complex. Getting this wrong in the cheap direction (calling something straightforward that
 wasn't) is exactly how a plausible-looking but wrong finding survives a single verifier's blind spot;
 getting it wrong in the expensive direction only costs a redundant pass.
 
-## Gate 1 — Refutation
+## Gate 1 - Refutation
 
 Construct the **strongest argument that the finding is wrong**. Find the guard, check, or
-constraint that would kill the attack — quote the exact line, re-read it in this turn (never from
-memory — `shared-rules.md`'s anti-hallucination rule applies here specifically), and trace how it
+constraint that would kill the attack - quote the exact line, re-read it in this turn (never from
+memory - `shared-rules.md`'s anti-hallucination rule applies here specifically), and trace how it
 blocks the claimed step.
 
-- **Concrete refutation** — a specific guard blocks the exact claimed step → **REJECT** (or
+- **Concrete refutation** - a specific guard blocks the exact claimed step → **REJECT** (or
   **DEMOTE** if a real code smell remains worth a note).
-- **Speculative refutation** — "probably wouldn't happen," "the caller would surely check,"
+- **Speculative refutation** - "probably wouldn't happen," "the caller would surely check,"
   "likely intended" without finding the actual check → **clears**. A vague defense never kills a
   finding; only a guard you can cite does.
 
-## Gate 2 — Reachability
+## Gate 2 - Reachability
 
 Prove the vulnerable state can exist in a live, deployed system.
 
 - **Structurally impossible** (an enforced invariant prevents it) → **REJECT**.
 - **Requires privileged misconfiguration** (an admin must act against documented intent, a
   multisig must collude) → **DEMOTE**.
-- **Achievable through normal usage** — ordinary calls, common token behaviors (fee-on-transfer,
+- **Achievable through normal usage** - ordinary calls, common token behaviors (fee-on-transfer,
   rebasing), ordinary user sequences, standard request flows → **clears**.
 
-## Gate 3 — Trigger
+## Gate 3 - Trigger
 
 Prove an unprivileged (or minimally privileged) actor can execute it, profitably where relevant.
 
-- **Only a trusted role can trigger** → **DEMOTE**, and report at the lower severity — never
+- **Only a trusted role can trigger** → **DEMOTE**, and report at the lower severity - never
   critical.
-- **Admin-action findings — REJECT outright (not even a lead) unless a concrete unprivileged
+- **Admin-action findings - REJECT outright (not even a lead) unless a concrete unprivileged
   amplifier is named.** This applies only when the *harmful* action requires an admin/owner/keeper
   to act, not to ordinary attacker actions. Clears only with one of:
-  - **race** — the admin sets X mid-flow; an unprivileged user exploits the window before the
+  - **race** - the admin sets X mid-flow; an unprivileged user exploits the window before the
     update propagates.
-  - **retroactive sweep** — an admin update overwrites a value already credited to someone.
-  - **asymmetric formula** — the admin's output feeds a formula an unprivileged actor profits from.
-  - **access gap** — the "admin" gate is itself the bug (missing guard, tautological check, missing
+  - **retroactive sweep** - an admin update overwrites a value already credited to someone.
+  - **asymmetric formula** - the admin's output feeds a formula an unprivileged actor profits from.
+  - **access gap** - the "admin" gate is itself the bug (missing guard, tautological check, missing
     init guard).
   No amplifier named → **REJECT**. Named → judge the *unprivileged* path from here on.
-- **Cost exceeds extraction** → **REJECT** — but re-check with a flash loan or an equivalent
+- **Cost exceeds extraction** → **REJECT** - but re-check with a flash loan or an equivalent
   atomic-borrow primitive first: "needs $10M" is not a defense if that capital is borrowable
   inside one transaction.
 - **Unprivileged actor triggers profitably** → **clears**.
 
-## Gate 4 — Invariant / Intent
+## Gate 4 - Invariant / Intent
 
-State the specific promise this finding breaks — a conservation law, an access boundary, a stated
+State the specific promise this finding breaks - a conservation law, an access boundary, a stated
 protocol guarantee, a documented business rule (`x-ray`'s invariant catalog for web3;
 "authenticated users can only see their own records" for web; a memory-safety or trust-boundary
 guarantee for binaries). If you cannot name one, this is a code-quality observation, not a
-security finding — **DEMOTE**. This gate exists specifically to stop a real-looking bug from
+security finding - **DEMOTE**. This gate exists specifically to stop a real-looking bug from
 shipping when it doesn't actually violate anything the system promised.
 
-## Gate 5 — Impact
+## Gate 5 - Impact
 
 Prove material harm to an identifiable victim.
 
 - **Self-harm only** (attacker loses their own funds/data, no other victim) → **REJECT**.
 - **Dust-level, non-compounding, no cascade** → **DEMOTE** to low/informational.
-- **Material loss** — user funds drained, protocol insolvent, data breached, account taken over,
-  arbitrary code execution — → **CONFIRMED**.
+- **Material loss** - user funds drained, protocol insolvent, data breached, account taken over,
+  arbitrary code execution - → **CONFIRMED**.
 
-## Gate 6 — Proof
+## Gate 6 - Proof
 
 A finding that clears Gates 0–5 needs a proof the *tool* accepts before it ships (`validation.md`):
 
@@ -166,19 +166,19 @@ A finding that clears Gates 0–5 needs a proof the *tool* accepts before it shi
 - **CRITICAL/HIGH/MEDIUM with no runnable PoC available** (the harness can't execute code, the target can't be
   safely tested live) → `sieve judge --verdict trace-only --reason "why it cannot be run"` → ships as
   **trace-verified**, explicitly labelled, with the exact PoC that *would* confirm it named. Never presented as a
-  proven critical — this is the honest floor when execution isn't available, not a way to skip proving. The reason
+  proven critical - this is the honest floor when execution isn't available, not a way to skip proving. The reason
   is written to the report's Coverage section.
-- **LOW/INFORMATIONAL** — a complete, re-read code trace (citations verified by code) is acceptable on its own and
+- **LOW/INFORMATIONAL** - a complete, re-read code trace (citations verified by code) is acceptable on its own and
   prints as trace-verified.
 
-**The negative PoC is no longer a courtesy — the tool requires it.** `sieve prove run` needs a control and fails a
+**The negative PoC is no longer a courtesy - the tool requires it.** `sieve prove run` needs a control and fails a
 proof whose control also shows the exploit signature (`VACUOUS`). The strongest control is a **mutation**: the same
-command re-run against a copy of the target with the fix applied (`--control-patch fix.diff`) — a PoC that "works" for
+command re-run against a copy of the target with the fix applied (`--control-patch fix.diff`) - a PoC that "works" for
 a reason *other than* the one the finding claims (the "right answer, wrong mechanism" trap), or that ignores the target
 entirely, cannot stop when the code is patched, so it fails. A control that unexpectedly matches is not a formality that
 failed; it's active evidence the finding's mental model of the bug is wrong, and the finding goes back to Gate 1.
 
-The report prints which findings are confirmed, which are trace-verified, and — for each confirmed one — the oracle, the
+The report prints which findings are confirmed, which are trace-verified, and - for each confirmed one - the oracle, the
 control kind, and how many times it ran. Never disguise the difference; the tool will not let you.
 
 ## Confidence
@@ -186,7 +186,7 @@ control kind, and how many times it ran. Never disguise the difference; the tool
 Start at **100**; deduct: partial attack path **−20**, bounded/non-compounding impact **−15**,
 requires a specific-but-achievable state **−10**. Confidence ≥ **75** gets a full write-up
 (description + fix); below 75 gets description only. The threshold is 75 and not some other number
-because every lead-promotion rule below lands a promoted lead at exactly 75 — moving this number
+because every lead-promotion rule below lands a promoted lead at exactly 75 - moving this number
 means moving those three rules with it.
 
 **Severity adjustment after the gates**, before computing CVSS (`cvss-guide.md`): attack needs
@@ -198,18 +198,18 @@ deployed but not in the reviewed commit → **DEMOTE + note it**.
 
 Some leads deserve promotion even without one agent completing a solo path:
 
-1. **Cross-component echo** — the identical root cause is CONFIRMED in component A → promote the
+1. **Cross-component echo** - the identical root cause is CONFIRMED in component A → promote the
    same pattern in component B (confidence 75).
-2. **Multi-agent convergence** — two or more agents independently flagged the same area and it was
+2. **Multi-agent convergence** - two or more agents independently flagged the same area and it was
    DEMOTED (not REJECTED) → promote (confidence 75).
-3. **Partial-path completion** — the only gap is an incomplete trace, but the path is reachable
-   and unguarded → promote (confidence 75, description only — deliberately no Fix block, since the
+3. **Partial-path completion** - the only gap is an incomplete trace, but the path is reachable
+   and unguarded → promote (confidence 75, description only - deliberately no Fix block, since the
    trace that would justify one was never completed).
-4. **Crossover chain** (`crossover.md`) — a finding on one pack that reaches power on another
+4. **Crossover chain** (`crossover.md`) - a finding on one pack that reaches power on another
    (a web admin panel that holds a contract's minter key; a leaked secret that is also a signing
    key) → chain and promote to the combined severity.
 
-## Do Not Report — universal (pack-specific additions live in each `packs/<pack>/judging.md`)
+## Do Not Report - universal (pack-specific additions live in each `packs/<pack>/judging.md`)
 
 - Theoretical issues with no reachable path on this target.
 - Anything requiring the target to already be compromised.
@@ -220,5 +220,5 @@ Some leads deserve promotion even without one agent completing a solo path:
 
 When choosing between DEMOTE and REJECT: mechanism real but impact small → DEMOTE to low/info;
 mechanism wrong or fully blocked → REJECT. **Never inflate to hit a payout tier.** A calibrated
-medium protects the operator's — and your — credibility; an inflated "critical" that a triager
+medium protects the operator's - and your - credibility; an inflated "critical" that a triager
 closes as informational costs it.

@@ -5,16 +5,25 @@ version: 1
 user_home: ~/.sieve
 
 # ---------------------------------------------------------------- knowledge base
+# One Obsidian vault for everything Sieve writes: the knowledge base under KB/ and each engagement under
+# Engagements/<target>/. Resolved as $SIEVE_VAULT, then `vault.root` below, then "Sieve Vault" in Documents
+# (OneDrive's Documents when that is where Documents lives), then ~/.sieve/vault. Point it at a local-only,
+# non-synced folder for a confidential engagement (or use `sieve vault export --local`).
+vault:
+  root: ""
+
 kb:
-  # Plain markdown cards with YAML frontmatter, wired for Obsidian: `sieve vault init` scaffolds this
-  # folder as a vault and every card carries [[wikilinks]] (vector, class, domain, engagements).
-  vault: ~/.sieve/kb
+  # Plain markdown cards with YAML frontmatter, wired for Obsidian: `sieve vault init` scaffolds the vault and
+  # every card carries [[wikilinks]] (vector, class, domain, engagements). `auto` means <vault root>/KB.
+  vault: auto
   index: ~/.sieve/index.db
   sources:
     seed:
       enabled: true            # cards and datasets shipped in kb/seed
+    public:
+      enabled: true            # `sieve kb ingest`: keyless public precedents (see `sieve kb sources`); no config needed
     solodit:
-      enabled: true            # needs an API key: solodit.cyfrin.io -> profile -> API keys
+      enabled: true            # OPTIONAL: needs an API key (solodit.cyfrin.io -> profile -> API keys); skipped when unset
       endpoint: https://solodit.cyfrin.io/api/v1/solodit/findings
       api_key_env: CYFRIN_API_KEY
       rate_limit: {requests: 20, per_seconds: 60}
@@ -38,6 +47,19 @@ kb:
     min_confidence: 75
     sanitize: true             # refuse to write secrets/keys/PII into cards
 
+# ---------------------------------------------------------------- tools and external services the audit reaches for
+tools:
+  burp:
+    proxy: 127.0.0.1:8080        # where Burp's proxy listener answers; the browser routes through it
+    mcp: 127.0.0.1:13337         # Burp's MCP server (the MCP tab shows the real host and port)
+  etherscan_key_file: ~/.claude/secrets/etherscan_api_key.txt   # presence is checked, the value is never printed
+
+external:
+  v12:                         # an independent automated audit, folded in as LEADS (never findings); see SKILL.md Turn 3
+    enabled: true
+    max_cost_cents: 3000       # the agent runs v12_estimate_cost first and only launches when the quote is at or under this
+    max_lines: 60000           # and only for a scope up to this many lines
+
 # ---------------------------------------------------------------- persistence (anti-laziness)
 persistence:
   min_dead_attempts: 3         # a dead end needs at least this many logged attempts...
@@ -55,10 +77,10 @@ audit:
   confidence_threshold: 75
   size_trigger: 20             # more findings than this: terminal prints top 3 + the report path
   hypothesis_quota:
-    min_total: 8               # per agent output file — references/methodology.md Part 0
-    min_techniques: 4          # distinct ideation techniques — methodology.md Part 3
+    min_total: 8               # per agent output file - references/methodology.md Part 0
+    min_techniques: 4          # distinct ideation techniques - methodology.md Part 3
     min_moonshots: 1
-  markers:                     # mandatory reasoning markers — methodology.md Part 1
+  markers:                     # mandatory reasoning markers - methodology.md Part 1
     feynman: {base: 3, per_kloc: 2, cap: 40}
     socratic: {base: 2, per_kloc: 1, cap: 25}
     inversion: {base: 3, per_kloc: 2, cap: 40}

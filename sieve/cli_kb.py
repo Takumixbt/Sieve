@@ -6,6 +6,7 @@ import glob
 import json
 import os
 import re
+import time
 from typing import Any, Dict, List, Optional
 
 from . import kb_net, kb_store, repo_root, util, vectors, yamlish
@@ -57,6 +58,8 @@ def _print_hit(h: Dict[str, Any], origin: str, n: int) -> None:
     ref = h.get("ref") or h.get("id")
     print(f"{n:>2}. [{origin}] {h.get('title', '')}  ({sev}{', ' + h['firm'] if h.get('firm') else ''})")
     print(f"      ref: {ref}" + (f"   {h['url']}" if h.get("url") else ""))
+    if h.get("fix"):
+        print(f"      fix: {h['fix'][:160]}")
     body = re.sub(r"\s+", " ", str(h.get("body", ""))).strip()
     if body:
         print(f"      {body[:220]}{'…' if len(body) > 220 else ''}")
@@ -373,7 +376,8 @@ def cmd_prime(args: argparse.Namespace) -> int:
             hits = ix.search(query, domain=pack, limit=3)
             hits = [h for h in hits if not h["id"].startswith("VEC-")]
             online: List[Dict[str, Any]] = []
-            if budget > 0 and pack == "web3" and not args.offline:
+            solodit_key = os.environ.get(str(cfg.get("kb.sources.solodit.api_key_env", "CYFRIN_API_KEY")), "")
+            if budget > 0 and pack == "web3" and not args.offline and solodit_key:
                 try:
                     online = kb_net.solodit_search(kb_net.Broker(ix), cfg, query, impact=["HIGH", "MEDIUM"])[:3]
                     budget -= 1
@@ -385,7 +389,10 @@ def cmd_prime(args: argparse.Namespace) -> int:
             lines.append(f"### {g}")
             for h in hits:
                 total_local += 1
-                lines.append(f"- [{h['status']}] {h['title']} — `{h['id']}`")
+                extra = ""
+                if h["status"] == "precedent":
+                    extra = (f" {h['source_ref']}" if h.get("source_ref") else "") + (f" (fix: {h['fix'][:90]})" if h.get("fix") else "")
+                lines.append(f"- [{h['status']}] {h['title']} — `{h['id']}`{extra}")
             for h in online:
                 total_online += 1
                 lines.append(f"- [{h['source']}] {h['title']} ({h['severity'] or '?'}"
@@ -435,9 +442,52 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_sources(args: argparse.Namespace) -> int:
+    from . import kb_ingest
+    cfg, ix, _vault = _ctx()
+    print(f"{'SOURCE':<14} {'DOMAIN':<11} {'ROWS':>7}  {'LAST INGEST':<11} LICENSE / WHAT")
+    for name, src in kb_ingest.SOURCES.items():
+        prev = kb_ingest.last_ingest(ix, name)
+        when = time.strftime("%Y-%m-%d", time.localtime(prev["time"])) if prev else "never"
+        print(f"{name:<14} {src.domain:<11} {(prev or {}).get('rows', 0):>7}  {when:<11} {src.license}: {src.desc}")
+    key = "set" if os.environ.get(str(cfg.get("kb.sources.solodit.api_key_env", "CYFRIN_API_KEY"))) else "not set (optional)"
+    print(f"\nsolodit (online, optional): API key {key}. Every source above needs no key. "
+          f"{ix.stats().get('precedents', 0)} precedent row(s) indexed locally.")
+    return 0
+
+
+def cmd_ingest(args: argparse.Namespace) -> int:
+    from . import kb_ingest
+    cfg, ix, _vault = _ctx()
+    if args.source in (None, "all"):
+        names = [n for n, s in kb_ingest.SOURCES.items() if s.default]
+    else:
+        names = [n.strip() for n in args.source.split(",") if n.strip()]
+        bad = [n for n in names if n not in kb_ingest.SOURCES]
+        if bad:
+            raise SystemExit(f"sieve kb ingest: unknown source(s) {', '.join(bad)}; known: {', '.join(kb_ingest.SOURCES)}")
+    opts = {"limit": args.limit, "osv_ecosystem": args.osv_ecosystem}
+    summary = kb_ingest.ingest(ix, names, opts, print, refresh=args.refresh)
+    failed = [n for n, s in summary.items() if s.get("error")]
+    total = sum(int(s.get("rows", 0)) for s in summary.values())
+    print(f"\ningest complete: {total} row(s) across {len(summary)} source(s)" + (f"; failed: {', '.join(failed)}" if failed else ""))
+    print(json.dumps(ix.stats().get("precedents_by_source", {})))
+    return 1 if failed and len(failed) == len(summary) else 0
+
+
 def register(sub: Any) -> None:
     p = sub.add_parser("kb", help="knowledge base: search, add, use, prime, write back")
     ks = p.add_subparsers(dest="kcmd", required=True)
+
+    q = ks.add_parser("sources", help="the public precedent sources, what each holds, when it was last ingested")
+    q.set_defaults(func=cmd_sources)
+
+    q = ks.add_parser("ingest", help="pull public precedents (no API key needed) into the local index")
+    q.add_argument("--source", help="comma list, or `all` (default). See `sieve kb sources`.")
+    q.add_argument("--limit", type=int, help="c4: contests to read (default 40); osv: records per ecosystem")
+    q.add_argument("--osv-ecosystem", help="comma list for the osv source, e.g. OSS-Fuzz,crates.io,Go,npm,PyPI,Maven")
+    q.add_argument("--refresh", action="store_true", help="re-fetch sources ingested within the last 7 days")
+    q.set_defaults(func=cmd_ingest)
 
     q = ks.add_parser("index", help="(re)build the local index from the vault, seed cards and vector cards")
     q.set_defaults(func=cmd_index)

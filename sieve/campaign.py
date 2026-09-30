@@ -220,6 +220,18 @@ def expand(topo: Dict[str, Any], eng: Engagement, profile: str) -> List[Dict[str
     return nodes
 
 
+def estimate(eng: Engagement, topo: Optional[Dict[str, Any]] = None) -> Dict[str, Dict[str, int]]:
+    """What each profile would dispatch for this engagement: agent runs (the expensive part) and mechanical steps."""
+    topo = topo or load_topology(default_topology())
+    out: Dict[str, Dict[str, int]] = {}
+    for prof in (topo.get("profiles") or {}):
+        nodes = expand(topo, eng, prof)
+        out[prof] = {"nodes": len(nodes),
+                     "agentic": sum(1 for n in nodes if n["kind"] == "agentic"),
+                     "meta": sum(1 for n in nodes if n["kind"] == "meta")}
+    return out
+
+
 def validate_topology(nodes: List[Dict[str, Any]]) -> List[str]:
     errs: List[str] = []
     ids = [n["id"] for n in nodes]

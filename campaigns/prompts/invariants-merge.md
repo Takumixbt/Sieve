@@ -3,11 +3,11 @@ Eight lenses each derived invariants independently (their artifacts are inlined 
 ## Merge rules
 
 1. **Merge duplicates.** Two statements that are the same property in different words become one invariant whose
-   `sources` lists every lens that found it. Agreement across independent lenses is the strongest signal on this page —
+   `sources` lists every lens that found it. Agreement across independent lenses is the strongest signal on this page -
    keep the union of `violators` and the sharpest `test`.
 2. **Drop the vacuous.** An invariant with no way to fail, or one that merely restates a `require` in the code, goes to
    `dropped` with the reason. Keep the reasons short and specific.
-3. **Keep the odd ones.** An invariant only one lens found is not weaker for it — it may be the one nobody else could see.
+3. **Keep the odd ones.** An invariant only one lens found is not weaker for it - it may be the one nobody else could see.
    Do not drop a single-source invariant for being single-source.
 4. **Rank by damage if broken** (`rank` 1 = worst): funds or data lost, privilege gained, chain or service halted.
    Break ties toward `on_chain: false` (unenforced by code) and toward invariants with many violators.

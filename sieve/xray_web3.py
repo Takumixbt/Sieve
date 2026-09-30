@@ -297,6 +297,8 @@ def _mark_corroboration(leads: List[Dict[str, Any]]) -> None:
 def run(root: str, src_dirs: Optional[List[str]] = None, slither_json: Optional[str] = None,
         aderyn_json: Optional[str] = None, auto_static: bool = True) -> Dict[str, Any]:
     root = os.path.abspath(root)
+    if os.environ.get("SIEVE_NO_STATIC") == "1":   # tests and air-gapped runs: skip the auto-invoked analyzers
+        auto_static = False
     dirs = src_dirs or detect_src_dirs(root)
     files, skipped = discover(root, dirs)
     by_sub: Dict[str, int] = defaultdict(int)

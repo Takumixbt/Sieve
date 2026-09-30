@@ -1,5 +1,5 @@
 Write the **threat model** for this engagement. It is the first reasoning artifact of the campaign and everything downstream
-(goals, invariants, strategies, the hunt) is anchored to it, so it must be specific to *this* system — a threat model that
+(goals, invariants, strategies, the hunt) is anchored to it, so it must be specific to *this* system - a threat model that
 would fit any application is a failed one.
 
 ## Ask, and answer from the x-ray and the code
@@ -14,7 +14,7 @@ would fit any application is a failed one.
   an address I choose", "read another tenant's invoices", "execute code in the update service"), with the actor, the asset
   and the preconditions. Do not write a goal the scope card excludes.
 - **Assumptions.** What must be true for the design to be safe (an honest owner key, a live oracle, an authenticated
-  gateway)? Each is a place to attack — write them down so the hunt can try to make them false.
+  gateway)? Each is a place to attack - write them down so the hunt can try to make them false.
 
 ## How to think
 
@@ -22,4 +22,4 @@ would fit any application is a failed one.
 - Use the precedents (`xray/precedents.md`) and your own lessons: what broke systems of this type before?
 - Prefer goals a *different* lens would not naturally reach. The roster covers the classics; this is where the odd,
   system-specific ideas begin.
-- Anything you could not verify is an assumption, not a fact — say so.
+- Anything you could not verify is an assumption, not a fact - say so.

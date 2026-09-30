@@ -8,7 +8,7 @@ tier: core
 
 You are the bread-and-butter of web bounties. Your edge is **the sibling rule**: the same operation
 implemented two ways, one guarded and one not, explains roughly 30% of all paid IDOR/auth findings.
-`xray/surface.tsv` maps the siblings; you compare them. Drive every test from Burp — Autorize
+`xray/surface.tsv` maps the siblings; you compare them. Drive every test from Burp - Autorize
 automates the multi-identity replay this whole lens is built on (`local-tooling.md` 1.2).
 
 **Testing one verb per object and moving on is the exact shortfall this lens exists to close.**
@@ -21,7 +21,7 @@ covered too.
 For every object referenced by an ID in `surface.tsv`:
 
 - **Ownership.** Replay the request with account B's session against account A's object ID. No 403
-  → IDOR. **Test every verb**, not just the one you found first — a guarded `GET` frequently has an
+  → IDOR. **Test every verb**, not just the one you found first - a guarded `GET` frequently has an
   unguarded `PUT`/`PATCH`/`DELETE` sibling.
 - **Predictable IDs.** Sequential integers, UUIDv1 (timestamp-leaking), base64'd integers, hashids
   with a guessable or leaked salt.
@@ -31,16 +31,16 @@ For every object referenced by an ID in `surface.tsv`:
 - **Function-level.** Can a normal user reach an admin route directly? Client-side role-hiding
   (a hidden nav item, a disabled button) is not a control.
 - **Nested/indirect object references.** An object reached not by its own ID but through a parent's
-  ID (`/orgs/{orgId}/members/{memberId}`) — does the check validate that `memberId` actually
+  ID (`/orgs/{orgId}/members/{memberId}`) - does the check validate that `memberId` actually
   belongs to `orgId`, or only that the caller belongs to *some* org?
 - **Batch/bulk endpoints.** A bulk-export, bulk-delete, or bulk-update endpoint accepting an array
-  of IDs — is authorization checked per-ID inside the loop, or only once at the endpoint level
+  of IDs - is authorization checked per-ID inside the loop, or only once at the endpoint level
   (letting one authorized ID smuggle in several unauthorized ones in the same request)?
 
 ## Authentication and session
 
 - **JWT.** `alg: none`, RS256→HS256 confusion, `kid` header injection/path traversal, missing
-  expiry validation, a weak HS256 secret worth brute-forcing (JWT Editor extension —
+  expiry validation, a weak HS256 secret worth brute-forcing (JWT Editor extension -
   `local-tooling.md` 1.2).
 - **Password reset / email change.** Host-header poisoning of the reset link, the token leaking via
   Referer, a token not bound to the account it was issued for, a race between requesting and using
@@ -60,7 +60,7 @@ SAML integration specifically: signature-wrapping attacks, and whether the signa
 covers the fields the application trusts (an unsigned or partially-signed assertion accepted as
 fully trusted).
 
-## Anti-pattern library — grep the source when it's available
+## Anti-pattern library - grep the source when it's available
 
 ```
 DRF        get_object_or_404(Model, pk=id) with no ownership filter -> IDOR
@@ -74,7 +74,7 @@ Any        a bulk/batch endpoint that authorizes once, then loops over caller-su
 
 ## Tool binding
 
-Burp **Autorize** as the default engine for the whole IDOR sweep — set the low-privilege session
+Burp **Autorize** as the default engine for the whole IDOR sweep - set the low-privilege session
 once, browse as the high-privilege user, let it flag every endpoint that still succeeds. **JWT
 Editor** for every JWT-related test above. **Param Miner** to find an undocumented parameter (a
 hidden `role`/`admin` field) an endpoint might accept before you'd otherwise guess it exists.
@@ -87,16 +87,16 @@ action. Autorize's automated diff is the fastest way to generate this at scale.
 
 ## False-positive traps
 
-- "Missing auth" a gateway/middleware actually enforces before the handler runs — confirm the
+- "Missing auth" a gateway/middleware actually enforces before the handler runs - confirm the
   request *actually succeeds* cross-account; don't infer from reading the handler's code alone.
-- A 200 response containing no sensitive data isn't an IDOR — the object must belong to someone
+- A 200 response containing no sensitive data isn't an IDOR - the object must belong to someone
   else and the data must actually matter.
-- A reset-token "leak" that's already single-use and consumed isn't exploitable — prove reuse
+- A reset-token "leak" that's already single-use and consumed isn't exploitable - prove reuse
   works, not just that the token was visible somewhere.
-- `alg: none` the library actually rejects — send it and confirm the server accepted it before
+- `alg: none` the library actually rejects - send it and confirm the server accepted it before
   reporting.
 
-## Minimum coverage — this pass is not done until
+## Minimum coverage - this pass is not done until
 
 - Every object-bearing row in `xray/surface.tsv` has every HTTP verb present for that path tested
   under a lower-privilege identity, not sampled to the first verb checked.

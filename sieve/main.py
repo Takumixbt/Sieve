@@ -12,12 +12,16 @@ MODULES = [
     "sieve.cli_core",
     "sieve.cli_kb",
     "sieve.cli_vault",
+    "sieve.cli_scan",
+    "sieve.cli_leads",
     "sieve.cli_xray",
     "sieve.cli_pass",
     "sieve.cli_validate",
     "sieve.cli_campaign",
     "sieve.cli_report",
     "sieve.cli_setup",
+    "sieve.cli_selftest",
+    "sieve.cli_preflight",
 ]
 
 

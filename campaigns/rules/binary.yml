@@ -97,7 +97,7 @@
   ext: [java, kt, smali, swift, m, mm, xml, plist, json]
   pattern: '\b(api[_-]?key|secret|passwd|password|token|private[_-]?key|client[_-]?secret)\b["'']?\s*[:=]\s*["''][A-Za-z0-9/+_\-]{16,}["'']'
   flags: i
-  why: 'record the location as evidence; never test or use a found credential — that is out of bounds without explicit written permission'
+  why: 'record the location as evidence; never test or use a found credential - that is out of bounds without explicit written permission'
   prio: 4
 - id: RULE-BIN-015
   title: 'native library load or JNI entry'

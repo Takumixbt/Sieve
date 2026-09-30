@@ -53,7 +53,10 @@ DESTRUCTIVE = [
     (re.compile(r"(-X|--request)\s+(DELETE)\b", re.I), "HTTP DELETE against a target"),
     (re.compile(r"\b(DROP|TRUNCATE)\s+(TABLE|DATABASE|SCHEMA)\b", re.I), "destructive SQL"),
 ]
-_SAFE_ENV = ("PATH", "HOME", "LANG", "LC_ALL", "LC_CTYPE", "TERM", "TMPDIR", "USER", "SHELL")
+_SAFE_ENV = ("PATH", "HOME", "LANG", "LC_ALL", "LC_CTYPE", "TERM", "TMPDIR", "USER", "SHELL",
+             # Windows: without these a child process cannot find its runtime, temp dir or profile
+             "SYSTEMROOT", "SYSTEMDRIVE", "WINDIR", "TEMP", "TMP", "USERPROFILE", "APPDATA", "LOCALAPPDATA",
+             "PATHEXT", "COMSPEC", "PROGRAMFILES", "PROGRAMFILES(X86)", "PROGRAMDATA", "HOMEDRIVE", "HOMEPATH")
 _SAFE_ENV_PREFIX = ("XDG_", "FOUNDRY_", "CARGO_", "RUSTUP_", "NVM_", "PYENV_", "GOPATH", "GOROOT", "JAVA_HOME",
                     "ANDROID_", "SIEVE_")
 _REDACT_KINDS = {"private-key-block", "private-key-header", "aws-access-key", "gcp-api-key", "github-token",
@@ -113,7 +116,7 @@ def _append_ledger(eng: Engagement, fname: str, data: bytes) -> None:
         entry = {"seq": len(lines) + 1, "file": fname, "sha256": hashlib.sha256(data).hexdigest(), "prev": prev,
                  "time": util.now_iso()}
         entry["mac"] = hmac.new(_key(eng), _canon(entry), hashlib.sha256).hexdigest()
-        with open(_ledger(eng), "a", encoding="utf-8") as fh:
+        with open(_ledger(eng), "a", encoding="utf-8", newline="\n") as fh:
             fh.write(json.dumps(entry, sort_keys=True) + "\n")
 
 
@@ -361,10 +364,27 @@ def _cited_hashes(eng: Engagement, fid: str) -> Dict[str, str]:
     return {r["file"]: r["sha256"] for r in rep["results"] if r.get("ok") and r.get("file") and r.get("sha256")}
 
 
+def shell_argv(cmd: str) -> List[str]:
+    """The shell a proof command runs under. PoC commands are written for a POSIX shell, so on Windows that means
+    the sh/bash that ships with Git for Windows (or WSL's), never cmd.exe."""
+    if os.name != "nt":
+        return ["/bin/sh", "-c", cmd]
+    for name in ("sh", "bash"):
+        hit = shutil.which(name)
+        if hit:
+            return [hit, "-c", cmd]
+    for cand in (r"C:\Program Files\Git\bin\sh.exe", r"C:\Program Files\Git\usr\bin\sh.exe",
+                 r"C:\Program Files (x86)\Git\bin\sh.exe"):
+        if os.path.isfile(cand):
+            return [cand, "-c", cmd]
+    raise SystemExit("sieve prove: no POSIX shell found. Proof commands run under sh: install Git for Windows "
+                     "(Git Bash) or WSL and make sure `sh` is on PATH.")
+
+
 def _run_once(cmd: str, cwd: str, env: Dict[str, str], timeout: int) -> Dict[str, Any]:
     t0 = time.time()
     try:
-        p = subprocess.run(["/bin/sh", "-c", cmd], capture_output=True, text=True, timeout=timeout, cwd=cwd,
+        p = subprocess.run(shell_argv(cmd), capture_output=True, text=True, timeout=timeout, cwd=cwd,
                            env=env, errors="replace")
         rc, out = p.returncode, (p.stdout or "") + (("\n" + p.stderr) if p.stderr else "")
         timed_out = False

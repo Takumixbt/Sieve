@@ -1,14 +1,14 @@
-# Validation — a finding is CONFIRMED by a machine, not by narration
+# Validation - a finding is CONFIRMED by a machine, not by narration
 
 Every audit tool's real failure is not missing bugs; it is **shipping bugs that are not there**. An agent
 that has talked itself into a finding will also talk itself into a proof: it writes "verified", it files a
 receipt that says so, it labels the file `status: confirmed`, and the report prints it. Gate 1's
-"re-read the line" and Gate 6's "attempt a negative PoC" are the right instincts — but as prose they are
+"re-read the line" and Gate 6's "attempt a negative PoC" are the right instincts - but as prose they are
 only as strong as the agent's honesty on its worst day.
 
 So this skill moves the decision out of the prose. **`confirmed` is a value the tool computes from
-evidence the tool checked.** The agent still does all the thinking — the hypothesis, the PoC, the control,
-the refutation — but it cannot mark its own work as proven. (`judging.md` is *what* the gates ask;
+evidence the tool checked.** The agent still does all the thinking - the hypothesis, the PoC, the control,
+the refutation - but it cannot mark its own work as proven. (`judging.md` is *what* the gates ask;
 this file is *how the answer becomes machine-checked*.)
 
 ## What the machine checks
@@ -18,7 +18,7 @@ this file is *how the answer becomes machine-checked*.)
 | **Citations exist** | every `file:line` in a finding is re-read by code (`sieve/cites.py`); a quoted snippet must appear within ±3 lines of the cited line | invented files, invented line numbers, code quoted from memory |
 | **The proof is executed** | `sieve prove run` runs the PoC command itself, several times (default 3) | "the PoC works" said instead of shown |
 | **The exploit is stable** | the signature regex must match on *every* run, and any value captured (`--capture profit=(\d+)`) must be identical across runs | flaky proofs; numbers typed by hand instead of measured |
-| **A negative control exists and stays silent** | the same signature must **not** appear in the control run; if it does, the proof is `VACUOUS` and failed | a test that "passes" whether or not the bug exists — the most common fake proof |
+| **A negative control exists and stays silent** | the same signature must **not** appear in the control run; if it does, the proof is `VACUOUS` and failed | a test that "passes" whether or not the bug exists - the most common fake proof |
 | **The control is a mutation, ideally** | `--control-patch fix.diff` re-runs the *identical command* against a throw-away copy of the target with the fix applied | a PoC that ignores the target (a script that prints `PASS`): patching the code cannot make it stop |
 | **Echo-only "PoCs" are refused** | a command that only prints text is rejected before it runs | a literal `echo "[PASS]"` |
 | **The PoC and the code are pinned** | the receipt records the SHA-256 of the PoC files and of every cited source file | proving one thing, then editing it; proofs that silently outlive a change |
@@ -27,16 +27,16 @@ this file is *how the answer becomes machine-checked*.)
 | **The oracle is independent** | (campaign, `default`/`exhaustive`) an auditor checks the proof's expected value is not computed by the code under test | circular tests that pass by construction |
 | **Nothing was edited afterwards** | receipts and verdicts carry an HMAC and join an append-only hash chain (`.sieve/proofs/ledger.jsonl`) | a hand-edited receipt, a deleted receipt, a hand-written one |
 
-## Tiers — what the report prints
+## Tiers - what the report prints
 
 `sieve/validate.py:assess()` combines those checks into **one tier per finding**. The report prints this
 tier and ignores whatever the finding file's own `status:` line claims (a mismatch is called out).
 
 | Tier | Meaning |
 |---|---|
-| **confirmed** | judged confirmed by a non-discoverer at confidence ≥ threshold **and** citations verified **and** a sealed exec receipt with verdict `pass` (repeated, stable, control silent) — for critical/high/medium. Low/informational need citations + verdict only and print as trace-verified |
+| **confirmed** | judged confirmed by a non-discoverer at confidence ≥ threshold **and** citations verified **and** a sealed exec receipt with verdict `pass` (repeated, stable, control silent) - for critical/high/medium. Low/informational need citations + verdict only and print as trace-verified |
 | **trace-verified** | cleared the gates and every citation re-reads correctly, but no controlled executable proof: a low-severity static finding, an uncontrolled run, captured evidence that was evaluated but not re-executed, or `--verdict trace-only` with a reason on record |
-| **unvalidated** | raised as a finding, but the machine cannot stand behind it (no proof, failed proof, confidence too low, not judged). Printed in its own section with the reason — never as a finding |
+| **unvalidated** | raised as a finding, but the machine cannot stand behind it (no proof, failed proof, confidence too low, not judged). Printed in its own section with the reason - never as a finding |
 | **stale** | it was proven, but the cited code or the PoC changed afterwards. `sieve verify <id> --rerun` re-executes it |
 | **tampered** | a receipt or verdict failed its seal, or a receipt exists that `sieve` did not write. The report refuses to enter the report phase until a human looks |
 | **rejected** | a verifier killed it. Counted, never listed as a finding; becomes a *false-positive lesson* in the KB |
@@ -69,14 +69,14 @@ Two refusals to expect, and why they are correct:
 
 The check rewards proofs that would be persuasive to a skeptical human. Per pack:
 
-- **web3** — a Foundry test against a fork (`forge test --match-test … --fork-url $RPC_URL`) whose assertion is the
+- **web3** - a Foundry test against a fork (`forge test --match-test … --fork-url $RPC_URL`) whose assertion is the
   *consequence* (funds moved, a balance gone wrong), plus the fix as a diff for `--control-patch`. Compute expected values from
   the deposit amounts or the spec, not by calling the contract's own accounting (the independence audit reads this).
-- **web** — a two-identity replay: the same request as the owner and as another user, expecting the other user's data;
+- **web** - a two-identity replay: the same request as the owner and as another user, expecting the other user's data;
   the control is the request with the second identity's *own* object, or without the credential. Declare every host with
   `--target`; the fence checks each one and refuses if `rules.active_testing` is false. If it is false, capture the traffic
   yourself and use `sieve prove add` (caps at trace-verified).
-- **binary** — a crash reproduction under a sanitizer with the fixed build (or the bounds-check patch) as the control; a Frida
+- **binary** - a crash reproduction under a sanitizer with the fixed build (or the bounds-check patch) as the control; a Frida
   script whose output distinguishes the vulnerable path.
 - **Numbers** in a finding's description must be the run's `--capture`d values. A number nobody measured is a tripwire
   (`shared-rules.md`).
@@ -87,19 +87,19 @@ Destructive verbs (`rm -rf /`, `mkfs`, `DROP TABLE`, HTTP `DELETE`, fork bombs, 
 like a literal credential (put it in an env var and pass `--env NAME`); traffic to any URL or `--target` the scope fence does not
 list, or any traffic at all when `rules.active_testing` is false; a network oracle with no declared target. The environment passed
 to the PoC is scrubbed to a small allow-list plus the names you pass with `--env`; receipts store output excerpts with secrets
-redacted and store only variable *names*. This is a seatbelt against mistakes, not a sandbox against a hostile PoC — run PoCs in
+redacted and store only variable *names*. This is a seatbelt against mistakes, not a sandbox against a hostile PoC - run PoCs in
 the fork/lab the scope card names.
 
-## What this does NOT do — read this before trusting a green tier
+## What this does NOT do - read this before trusting a green tier
 
 - **It cannot tell a well-built fake from a real bug.** A script that prints `[PASS]` *and* a control script that prints `[FAIL]`
   will satisfy a weak setup. That is why the strongest control is `--control-patch` (a fake cannot stop when the code is patched),
   why echo-only commands are refused, and why the report prints each confirmed finding's oracle, control kind and command. **A human
-  reads the PoC before a submission.** The tier is "a machine reproduced it and could not make it vanish without the fix" — a very
+  reads the PoC before a submission.** The tier is "a machine reproduced it and could not make it vanish without the fix" - a very
   high bar, not omniscience.
 - **The seal is tamper-*evident*, not tamper-proof.** The HMAC key lives in `.sieve/.seal-key` on the same disk. It stops accidents
   and narrated shortcuts; forging a receipt takes a deliberate read of that file and would show in the transcript.
-- **A pass on a fork is not proof of exploitability in production**, and severity is still a judgement — the verifier sets it
+- **A pass on a fork is not proof of exploitability in production**, and severity is still a judgement - the verifier sets it
   (`--severity`), and the report prints the verifier's, not the discoverer's.
 - **Static rule hits, Slither output and precedent cards are leads.** They never reach a tier above `unvalidated` on their own.
 

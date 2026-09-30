@@ -158,6 +158,24 @@ CONTRACTS: Dict[str, Dict[str, Any]] = {
         "example": {"audits": [{"finding_id": "F-001", "oracle_independent": True, "shares_code_with_target": False,
                                 "reason": "the expected value is computed from the deposit amounts, not by calling the vault's own accounting"}]},
     },
+    "fuzz@1": {
+        "doc": "Stateful property fuzzing of the merged invariants (Echidna, Medusa or Foundry invariant tests): what was run, what held, what broke, and the anti-vacuity evidence for every green result.",
+        "schema": {"type": "object", "required": ["status", "tool", "reason", "runs"], "properties": {
+            "status": {"type": "string", "enum": ["ran", "not-applicable", "tooling-missing"]},
+            "tool": {"type": "string", "enum": ["echidna", "medusa", "foundry-invariant", "halmos", "none"]},
+            "reason": _s(15),
+            "harness": _arr(_s(3)),
+            "runs": _arr({"type": "object", "required": ["invariant_id", "cmd", "result", "evidence", "anti_vacuity"],
+                          "properties": {"invariant_id": _s(pattern=r"^INV-\d+$"), "cmd": _s(3),
+                                         "result": {"type": "string", "enum": ["held", "broken", "vacuous", "error"]},
+                                         "evidence": _s(20), "anti_vacuity": _s(15), "sequence": _s(1)}})}},
+        "example": {"status": "ran", "tool": "echidna", "reason": "Foundry project with a stated balance invariant",
+                    "harness": [".sieve/proofs/fuzz/InvariantHandler.t.sol"],
+                    "runs": [{"invariant_id": "INV-1", "cmd": "echidna . --contract InvariantHandler --test-limit 200000",
+                              "result": "broken", "evidence": "invariant_conservation failed after 1,412 calls; shrunk to 3",
+                              "anti_vacuity": "the planted owner-check removal also fails the property, so it can go red",
+                              "sequence": "deposit(1) -> sweep(attacker) -> withdraw(1)"}]},
+    },
 }
 
 def _grow(example: Dict[str, Any], key: str, n: int, idkey: str = "id") -> None:

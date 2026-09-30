@@ -1,6 +1,6 @@
 ---
 id: KB-WEB-seed01
-title: "Example — IDOR via an unguarded sibling verb"
+title: "Example - IDOR via an unguarded sibling verb"
 source: seed
 source_ref: "kb/README.md"
 domain: web
@@ -14,7 +14,7 @@ tags: [idor, authorization, sibling-rule]
 first_seen: "2026-09-29"
 ---
 
-# Example — IDOR via an unguarded sibling verb
+# Example - IDOR via an unguarded sibling verb
 
 Shipped example illustrating the card schema. See `packs/web/vectors/authz-and-idor.md`
 (`WEB-IDOR-01`) for the live vector card, and `packs/web/agents/access-control-agent.md` for the

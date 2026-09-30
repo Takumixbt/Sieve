@@ -59,7 +59,10 @@ def atomic_write(path: str, data: str, mode: str = "w") -> None:
     os.makedirs(d, exist_ok=True)
     fd, tmp = tempfile.mkstemp(prefix=".tmp-", dir=d)
     try:
-        with os.fdopen(fd, mode, encoding=None if "b" in mode else "utf-8") as fh:
+        # Never translate LF to CRLF. Receipts and the ledger are hashed as written, and a Windows text-mode write
+        # would change the bytes after the hash was taken (every proof would then read back as tampered).
+        binary = "b" in mode
+        with os.fdopen(fd, mode, encoding=None if binary else "utf-8", newline=None if binary else "\n") as fh:
             fh.write(data)
         os.replace(tmp, path)
     except BaseException:

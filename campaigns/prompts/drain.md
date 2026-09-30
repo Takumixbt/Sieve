@@ -1,5 +1,5 @@
 The hunt loops and the roaming pass are finished, and `sieve absorb` closed every row an agent covered *with a receipt*.
-**Every remaining frontier row must now be closed the same way** — this node is complete only when `sieve frontier list
+**Every remaining frontier row must now be closed the same way** - this node is complete only when `sieve frontier list
 --status open` is empty (the engine checks).
 
 ## How a row leaves the queue (nothing else counts)
@@ -12,7 +12,7 @@ sieve frontier dead <row> --try layer:"..." --try sibling:"..." --try precedent:
 sieve frontier block <row> --reason scope|credentials|irreversible|tooling --note "exactly what is missing"
 ```
 
-The rungs are `sieve ladder`: input, layer, precondition, inversion, precedent, sibling, transplant, construct, fresh-eyes —
+The rungs are `sieve ladder`: input, layer, precondition, inversion, precedent, sibling, transplant, construct, fresh-eyes -
 each a different *kind* of move, so three attempts on three rungs are three ideas, not three retries.
 
 ## Work the queue

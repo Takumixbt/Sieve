@@ -174,6 +174,14 @@ def main_stop(stdin_text: Optional[str] = None) -> int:
 HOOK_COMMAND_GUARDED = "sh -c 'command -v sieve >/dev/null 2>&1 && exec sieve hook stop || exit 0'"
 
 
+def launcher(root: str) -> str:
+    """The command that runs Sieve from a hook. Windows has no POSIX shell to run bin/sieve, so it goes
+    through the Python launcher instead."""
+    if os.name == "nt":
+        return f'python "{os.path.join(root, "bin", "sieve.py")}"'
+    return os.path.join(root, "bin", "sieve")
+
+
 def install(scope: str, sieve_bin: str, dry_run: bool = False) -> str:
     """Register the Stop hook in Claude Code settings. Idempotent; preserves everything else."""
     if scope == "user":

@@ -1,6 +1,6 @@
 ---
 id: KB-W3-seed01
-title: "Example — spot-price oracle manipulation via flash loan"
+title: "Example - spot-price oracle manipulation via flash loan"
 source: seed
 source_ref: "kb/README.md"
 domain: web3
@@ -14,7 +14,7 @@ tags: [oracle, flash-loan, amm]
 first_seen: "2026-09-29"
 ---
 
-# Example — spot-price oracle manipulation via flash loan
+# Example - spot-price oracle manipulation via flash loan
 
 This is a shipped example illustrating the card schema, not a vetted precedent for any specific
 engagement. See `packs/web3/vectors/oracle-and-price.md` (`W3-ORC-01`) for the live vector card.

@@ -58,7 +58,7 @@
   ext: [js, mjs, ts, tsx, py, rb, php, java, go, cs, yml, yaml, json, env]
   pattern: '\b(api[_-]?key|secret|passwd|password|token|private[_-]?key)\b["'']?\s*[:=]\s*["''][A-Za-z0-9/+_\-]{16,}["'']'
   flags: i
-  why: 'record the location as evidence; never test or use a found credential — that is out of bounds without explicit written permission'
+  why: 'record the location as evidence; never test or use a found credential - that is out of bounds without explicit written permission'
   prio: 4
 - id: RULE-WEB-009
   title: 'weak hash or cipher mode'

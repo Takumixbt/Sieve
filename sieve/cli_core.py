@@ -294,8 +294,7 @@ def cmd_hook(args: argparse.Namespace) -> int:
 
 def cmd_hooks(args: argparse.Namespace) -> int:
     if args.hcmd == "install":
-        sieve_bin = os.path.join(repo_root(), "bin", "sieve")
-        print(hooklib.install(args.scope, sieve_bin, dry_run=args.dry_run))
+        print(hooklib.install(args.scope, hooklib.launcher(repo_root()), dry_run=args.dry_run))
     else:
         found = hooklib.installed()
         print(f"Stop hook registered — user: {found['user']}  project: {found['project']}")

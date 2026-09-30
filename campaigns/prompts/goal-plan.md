@@ -3,10 +3,10 @@ hunted. This is the bridge from "what could go wrong" to "what will we actually 
 
 ## For every attack goal in the threat model (and any you add)
 
-- Write a **goal** — a statement that can be answered *yes, here is the trace* or *no, here is the guard that stops it*.
+- Write a **goal** - a statement that can be answered *yes, here is the trace* or *no, here is the guard that stops it*.
   "Prove or refute that any caller can move funds out of the vault" is a goal; "look at access control" is not.
 - Give it a **priority 1-5** (5 = read first): (damage if true) x (likelihood it is unguarded) x (how little the roster
-  would notice). A goal that only a cross-component chain reaches is not low priority for that reason — it is exactly
+  would notice). A goal that only a cross-component chain reaches is not low priority for that reason - it is exactly
   where nobody looks.
 - List the **components** it touches (`file:function`, endpoint, boundary) so the frontier and the roster can find it.
 - Write **first checks**: the cheapest read or query that would confirm or kill it. The first check is what an agent does

@@ -25,13 +25,14 @@ from . import campaign as C
 from . import campaign_rules
 from . import campaign_schema as schema
 from . import cites as citelib
-from . import frontier, judging, pipeline, report, util, validate, xray_git, xray_web, xray_web3
+from . import frontier, judging, pipeline, report, repo_root, util, validate, xray_git, xray_web, xray_web3
 from . import merge as mergelib
 from .cli_core import _phase_gate, _waive
 from .fence import Fence
 from .state import Engagement
 
 Result = Tuple[bool, str]
+_OBS = "# Live-browser observation\n\n"
 
 
 def _cli(*argv: str) -> Tuple[int, str]:
@@ -89,7 +90,10 @@ def act_phase(eng: Engagement, node: Dict[str, Any], nodes: List[Dict[str, Any]]
     return True, f"phase -> {target}"
 
 
-def act_xray(eng: Engagement, node: Dict[str, Any], nodes: List[Dict[str, Any]]) -> Result:
+def act_xray(eng: Engagement, node: Dict[str, Any], nodes: List[Dict[str, Any]], reuse: bool = True) -> Result:
+    from . import scan as scanlib
+    if reuse and scanlib.fresh(eng, "xray") and os.path.isfile(eng.path("xray", "facts.json")):
+        return True, "reused the `sieve scan` x-ray (source tree unchanged since the scan)"
     st = eng.load()
     msgs: List[str] = []
     facts_path = eng.path("xray", "facts.json")
@@ -118,9 +122,22 @@ def act_xray(eng: Engagement, node: Dict[str, Any], nodes: List[Dict[str, Any]])
     return True, "; ".join(msgs) or "nothing to enumerate mechanically (binary targets are triaged by hand)"
 
 
-def act_rules(eng: Engagement, node: Dict[str, Any], nodes: List[Dict[str, Any]]) -> Result:
+def act_rules(eng: Engagement, node: Dict[str, Any], nodes: List[Dict[str, Any]], reuse: bool = True) -> Result:
+    from . import scan as scanlib
+    if reuse and scanlib.fresh(eng, "rules") and os.path.isfile(eng.path("xray", "rule-hits.json")):
+        return True, "reused the `sieve scan` rule pass (source tree unchanged since the scan)"
     res = campaign_rules.run(eng)
     return True, f"{res['hits']} static rule hit(s) across {res['files']} file(s) from {res['rules']} rule(s) + vector tells"
+
+
+def act_external_leads(eng: Engagement, node: Dict[str, Any], nodes: List[Dict[str, Any]]) -> Result:
+    from . import leads as leadslib
+    res = leadslib.apply(eng)
+    if not res["leads"]:
+        util.atomic_write(eng.path("xray", "external-leads.md"),
+                          "# External leads\n\n_None supplied (no V12 run, no scanner import)._\n")
+        return True, "no external leads supplied"
+    return True, f"{res['leads']} external lead(s) on record; frontier +{res['added']}"
 
 
 def act_prime(eng: Engagement, node: Dict[str, Any], nodes: List[Dict[str, Any]]) -> Result:
@@ -130,6 +147,105 @@ def act_prime(eng: Engagement, node: Dict[str, Any], nodes: List[Dict[str, Any]]
         util.atomic_write(eng.path("xray", "precedents.md"), "# Precedents\n\n_(knowledge base unavailable: " + out[:200] + ")_\n")
         return True, "knowledge base unavailable — continuing without precedents (recorded)"
     return True, out.split("\n")[-1][:200]
+
+
+def act_fuzz_absorb(eng: Engagement, node: Dict[str, Any], nodes: List[Dict[str, Any]]) -> Result:
+    """A broken invariant is a lead and a vacuous one is a harness gap: both become frontier rows the drain must
+    close with a receipt. A fuzz run that could not happen is coverage debt on the record, never silence."""
+    path = next(iter(_artifact(eng, nodes, "fuzz")), None)
+    d = _json(path) or {} if path else {}
+    rows: List[Dict[str, Any]] = []
+    broken = vacuous = held = 0
+    for r in d.get("runs", []):
+        res = r.get("result")
+        if res == "broken":
+            broken += 1
+            rows.append({"kind": "fuzz-break", "component": f"{r['invariant_id']} broken by the fuzzer"[:120], "lens": "invariant-agent",
+                         "prio": 5, "source": "fuzz", "note": f"replay: {str(r.get('sequence') or r.get('cmd'))[:80]}"})
+        elif res == "vacuous":
+            vacuous += 1
+            rows.append({"kind": "fuzz-gap", "component": f"{r['invariant_id']} harness never reached the code it guards"[:120],
+                         "lens": "invariant-agent", "prio": 4, "source": "fuzz", "note": str(r.get("evidence"))[:80]})
+        elif res == "held":
+            held += 1
+        elif res == "error":
+            _waive(eng, "fuzz", f"{r['invariant_id']}: fuzz run errored — {str(r.get('evidence'))[:160]}")
+    if d.get("status") != "ran":
+        if d.get("status") == "tooling-missing":
+            _waive(eng, "fuzz", "property fuzzing skipped: " + str(d.get("reason"))[:200])
+        return True, f"fuzzing {d.get('status', 'not run')}: {str(d.get('reason', ''))[:120]}"
+    added = frontier.add_many(eng, rows)
+    return True, f"{held} invariant(s) held, {broken} broken, {vacuous} vacuous; frontier +{added}"
+
+
+def act_browser(eng: Engagement, node: Dict[str, Any], nodes: List[Dict[str, Any]]) -> Result:
+    """CloakBrowser recon of every in-scope URL. Every URL passes the fence in code before a browser opens; the
+    fence's host list is handed to the script so a click cannot navigate the main frame off-scope."""
+    import importlib.util
+    import subprocess
+    import sys
+    out = eng.path("xray", "browser-observations.md")
+    os.makedirs(os.path.dirname(out), exist_ok=True)
+    fence = Fence.load(eng)
+    if fence is None:
+        return False, "no scope card: refusing to open a browser"
+    cfg_path = eng.path("inputs", "browser.json")
+    extra = util.read_json(cfg_path, {}) or {}
+    urls = [str(u) for u in (fence.scope.get("urls") or [])] + [str(u) for u in extra.get("urls", [])]
+    urls += [f"https://{h}" for h in (fence.scope.get("hosts") or []) if "*" not in str(h)]
+    urls = list(dict.fromkeys(urls))
+    if not urls:
+        util.atomic_write(out, _OBS + "_No live URL is in scope (source-only engagement): nothing to observe._\n")
+        return True, "no live URL in scope; nothing to observe"
+    if not (fence.active_testing or fence.lab):
+        util.atomic_write(out, _OBS + "_rules.active_testing is false on the scope card: a browser is active "
+                                      "interaction, so none was opened._\n")
+        return True, "active_testing is false; no browser opened (passive engagement)"
+    if importlib.util.find_spec("cloakbrowser") is None:
+        _waive(eng, "web", "browser recon skipped: CloakBrowser is not installed (pip install cloakbrowser)")
+        util.atomic_write(out, _OBS + "_CloakBrowser is not installed: live-client recon is coverage debt._\n")
+        return True, "CloakBrowser not installed; recorded as coverage debt"
+    allow = [str(h) for h in (fence.scope.get("hosts") or [])]
+    if fence.lab:
+        allow += ["localhost", "127.0.0.1"]
+    script = os.path.join(repo_root(), "scripts", "browser-recon.py")
+    parts: List[str] = []
+    notes: List[str] = []
+    for i, url in enumerate(urls, 1):
+        ok, why = fence.check_url(url)
+        if not ok:
+            notes.append(f"{url}: refused by the fence ({why})")
+            continue
+        dst = eng.path("xray", "browser", f"obs-{i}.md")
+        cmd = [sys.executable, script, url, "--out", dst]
+        for h in allow:
+            cmd += ["--allow-host", h]
+        for sel in (extra.get("click") or {}).get(url, []):
+            cmd += ["--click", str(sel)]
+        proxy = extra.get("proxy")
+        if proxy:
+            cmd += ["--proxy", str(proxy)]
+        try:
+            res = subprocess.run(cmd, capture_output=True, text=True, timeout=int(extra.get("timeout", 240)))
+        except subprocess.TimeoutExpired:
+            notes.append(f"{url}: timed out")
+            continue
+        if res.returncode != 0 or not os.path.isfile(dst):
+            lines = (res.stderr or res.stdout).strip().splitlines()
+            why = next((l.strip() for l in lines if "Error" in l), lines[-1].strip() if lines else "no output")
+            notes.append(f"{url}: browser run failed ({why[:200]})")
+            continue
+        parts.append(util.read_text(dst))
+    if not parts:
+        _waive(eng, "web", "browser recon produced no observation: " + "; ".join(notes)[:300])
+        util.atomic_write(out, _OBS + "_No page could be observed: " + "; ".join(notes) + "_\n")
+        return True, "no page observed (" + "; ".join(notes)[:160] + "); recorded as coverage debt"
+    sep = "\n\n---\n\n"
+    tail = ""
+    if notes:
+        tail = "\n\n## Not observed\n" + "\n".join(f"- {n}" for n in notes) + "\n"
+    util.atomic_write(out, sep.join(parts) + tail)
+    return True, f"observed {len(parts)} page(s) through CloakBrowser" + (f"; {len(notes)} skipped" if notes else "")
 
 
 def _md_list(items: List[str]) -> str:
@@ -421,6 +537,7 @@ ACTIONS: Dict[str, Callable[[Engagement, Dict[str, Any], List[Dict[str, Any]]], 
     "pass-merge": act_pass_merge, "merge-final": act_merge_final, "reportability": act_reportability,
     "prove-run": act_prove_run, "audit-gate": act_audit_gate, "verify": act_verify, "report": act_report,
     "writeback": act_writeback, "map": act_map, "finish": act_finish,
+    "fuzz-absorb": act_fuzz_absorb, "browser": act_browser, "external-leads": act_external_leads,
 }
 
 
@@ -451,6 +568,13 @@ def _semantic_checks(eng: Engagement, node: Dict[str, Any], data: Any, errs: Lis
             errs.append(f"$.verdicts: no verdict for candidate {miss} — every candidate needs a verdict from every panelist")
         for extra in sorted(seen - set((util.read_json(eng.path("findings", "candidates.json"), {}) or {}).keys())):
             errs.append(f"$.verdicts: {extra} is not a candidate finding")
+    elif check == "fuzz-valid":
+        d = data or {}
+        if d.get("status") == "ran" and not d.get("runs"):
+            errs.append("$.runs: status is `ran` but no run is recorded: list every invariant you fuzzed, with its result")
+        for i, r in enumerate(d.get("runs", [])):
+            if r.get("result") == "broken" and not r.get("sequence"):
+                errs.append(f"$.runs[{i}]: a broken invariant needs `sequence`, the shrunk call sequence that replays the break")
     elif check == "proofs-valid":
         from . import validate as V
         cleared = {fid for fid, j in V.load_judged(eng).items() if j.get("gates") == "cleared" and j.get("verdict") in ("cleared",)}

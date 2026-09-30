@@ -135,6 +135,10 @@ class Fence:
             return True, "no path restriction on the scope card"
         for p in entries:
             p = p.rstrip("/")
+            if p in (".", ""):        # "." means the whole engagement root
+                if not rel.startswith(".."):
+                    return True, "in scope (whole target tree)"
+                continue
             if rel == p or rel.startswith(p + os.sep):
                 return True, f"in scope ({p})"
         return False, f"path {rel} is not under scope.paths / scope.binaries"

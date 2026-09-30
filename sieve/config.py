@@ -43,6 +43,9 @@ class Config:
         v = self.get(dotted, default)
         if v is None:
             raise KeyError(dotted)
+        if dotted == "kb.vault" and str(v).strip() in ("", "auto"):
+            from .vault import vault_root      # lazy: vault imports modules that import this one
+            return os.path.join(vault_root(self), "KB")
         uh = user_home()
         s = str(v)
         if s.startswith("~/.sieve"):

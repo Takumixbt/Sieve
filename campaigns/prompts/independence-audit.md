@@ -11,14 +11,14 @@ every mechanical check and still prove nothing.
 ## For each proof
 
 - Read the PoC file(s), the control, and what the signature actually keys on (all listed below; open the files).
-- **shares_code_with_target** — does the expectation or the setup call into, copy, or derive from the code under audit?
-- **oracle_independent** — would the proof still distinguish *bug present* from *bug absent* if the target's logic were wrong in
+- **shares_code_with_target** - does the expectation or the setup call into, copy, or derive from the code under audit?
+- **oracle_independent** - would the proof still distinguish *bug present* from *bug absent* if the target's logic were wrong in
   the way the finding claims? An independent oracle is a hand-computed value, a spec, a second implementation, an on-chain
   fact, or an observable consequence (funds moved, another user's data returned).
-- **reason** — one or two sentences that name the specific line or value you checked. "Looks fine" is not a reason.
+- **reason** - one or two sentences that name the specific line or value you checked. "Looks fine" is not a reason.
 
 If the answer is no, say so plainly: the finding is capped at trace-verified until it has a better oracle. That is a good
-outcome for the report — a false positive avoided.
+outcome for the report - a false positive avoided.
 
 ## Proofs to audit
 

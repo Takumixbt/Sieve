@@ -19,7 +19,7 @@ from . import util, yamlish
 from .vault import with_links
 
 DOMAIN_CODE = {"web3": "W3", "web": "WEB", "binary": "BIN"}
-STATUS_RANK = {"confirmed": 4, "curated": 3, "seed": 2, "raw": 1}
+STATUS_RANK = {"confirmed": 4, "curated": 3, "seed": 2, "raw": 1, "precedent": 0.5}
 CARD_ORDER = ["id", "title", "source", "source_ref", "domain", "class", "vector", "severity",
               "protocol_type", "stack", "tell", "status", "confidence", "firm", "tags",
               "first_seen", "last_used", "used_in", "redactions"]
@@ -147,6 +147,9 @@ class Index:
     CREATE INDEX IF NOT EXISTS rl_idx ON ratelimit(source, ts);
     CREATE TABLE IF NOT EXISTS hits(ref TEXT PRIMARY KEY, source TEXT, payload TEXT, seen REAL);
     CREATE TABLE IF NOT EXISTS meta(k TEXT PRIMARY KEY, v TEXT);
+    CREATE TABLE IF NOT EXISTS precedents(id TEXT PRIMARY KEY, source TEXT, domain TEXT, class TEXT, title TEXT,
+        severity TEXT, protocol TEXT, url TEXT, fix TEXT, tags TEXT, body TEXT, date TEXT);
+    CREATE INDEX IF NOT EXISTS pr_src ON precedents(source);
     """
 
     def __init__(self, path: str):
@@ -163,6 +166,11 @@ class Index:
                              "id UNINDEXED, title, class, tags, stack, body, tokenize='porter unicode61')")
         except sqlite3.OperationalError:
             self.fts = False
+        try:
+            self.con.execute("CREATE VIRTUAL TABLE IF NOT EXISTS precedents_fts USING fts5("
+                             "id UNINDEXED, title, class, tags, body, tokenize='porter unicode61')")
+        except sqlite3.OperationalError:
+            pass
 
     def close(self) -> None:
         self.con.close()
@@ -181,6 +189,39 @@ class Index:
             self.con.execute("INSERT INTO cards_fts(id,title,class,tags,stack,body) VALUES (?,?,?,?,?,?)",
                              (meta["id"], meta.get("title", ""), meta.get("class", ""), tags,
                               meta.get("stack", ""), body))
+
+    def replace_precedents(self, source: str, rows: List[Dict[str, Any]]) -> int:
+        """Swap one source's precedent rows for a fresh set, in one transaction. The vault is untouched."""
+        self.con.execute("BEGIN")
+        try:
+            self.con.execute("DELETE FROM precedents_fts WHERE id IN (SELECT id FROM precedents WHERE source=?)", (source,))
+            self.con.execute("DELETE FROM precedents WHERE source=?", (source,))
+            seen = set()
+            n = 0
+            for r in rows:
+                if r["id"] in seen:
+                    continue
+                seen.add(r["id"])
+                self.con.execute("INSERT INTO precedents VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                                 (r["id"], r["source"], r["domain"], r["class"], r["title"], r["severity"], r["protocol"],
+                                  r["url"], r["fix"], r["tags"], r["body"], r["date"]))
+                self.con.execute("INSERT INTO precedents_fts(id,title,class,tags,body) VALUES (?,?,?,?,?)",
+                                 (r["id"], r["title"], r["class"], r["tags"] + " " + r["protocol"], r["body"]))
+                n += 1
+            self.con.execute("COMMIT")
+        except BaseException:
+            self.con.execute("ROLLBACK")
+            raise
+        return n
+
+    @staticmethod
+    def _precedent_as_card(r: Dict[str, Any]) -> Dict[str, Any]:
+        """A precedent row in the shape cards have, so search/get/use treat both tiers alike."""
+        return {"id": r["id"], "path": "", "source": r["source"], "source_ref": r["url"], "domain": r["domain"],
+                "class": r["class"], "vector": "", "severity": r["severity"], "title": r["title"],
+                "protocol_type": r["protocol"], "stack": "", "tell": "", "status": "precedent", "confidence": 0,
+                "firm": "", "tags": r["tags"], "body": r["body"] + (f"\nFix: {r['fix']}" if r.get("fix") else ""),
+                "updated": r.get("date", ""), "fix": r.get("fix", "")}
 
     def reindex(self, dirs: List[str], extra: Optional[List[Tuple[Dict[str, Any], str]]] = None) -> int:
         self.con.execute("BEGIN")
@@ -206,7 +247,40 @@ class Index:
     # ------------------------------------------------------------ reads
     def get(self, cid: str) -> Optional[Dict[str, Any]]:
         r = self.con.execute("SELECT * FROM cards WHERE id=?", (cid,)).fetchone()
-        return dict(r) if r else None
+        if r:
+            return dict(r)
+        p = self.con.execute("SELECT * FROM precedents WHERE id=?", (cid,)).fetchone()
+        return self._precedent_as_card(dict(p)) if p else None
+
+    def search_precedents(self, tokens: List[str], domain: Optional[str], klass: Optional[str], limit: int) -> List[Dict[str, Any]]:
+        if not tokens or self.con.execute("SELECT 1 FROM precedents LIMIT 1").fetchone() is None:
+            return []
+        filt, args = [], []  # type: List[str], List[Any]
+        if domain:
+            # a source may span domains ("web+binary"): match the whole value or one segment of it, never a substring
+            # (a plain LIKE would let the domain "web" match "web3")
+            filt.append("(p.domain = ? OR p.domain LIKE ? OR p.domain LIKE ? OR p.domain LIKE ?)")
+            args += [domain, f"{domain}+%", f"%+{domain}", f"%+{domain}+%"]
+        if klass:
+            filt.append("p.class = ?")
+            args.append(klass)
+        where = (" AND " + " AND ".join(filt)) if filt else ""
+        q = " OR ".join(f'"{t}"' for t in tokens)
+        try:
+            rows = self.con.execute(
+                "SELECT p.*, bm25(precedents_fts, 0.0, 6.0, 4.0, 3.0, 1.0) AS score FROM precedents_fts "
+                "JOIN precedents p ON p.id = precedents_fts.id WHERE precedents_fts MATCH ?" + where +
+                " ORDER BY score LIMIT ?", [q] + args + [limit]).fetchall()
+        except sqlite3.OperationalError:
+            return []
+        out = []
+        for r in rows:
+            d = dict(r)
+            score = -float(d.pop("score"))
+            card = self._precedent_as_card(d)
+            card["rank"] = score + STATUS_RANK["precedent"] * 0.4
+            out.append(card)
+        return out
 
     def search(self, query: str, domain: Optional[str] = None, klass: Optional[str] = None,
                limit: int = 8, min_status: Optional[str] = None) -> List[Dict[str, Any]]:
@@ -245,6 +319,8 @@ class Index:
             for h in hits:
                 blob = (h["title"] + " " + h["body"]).lower()
                 h["rank"] = sum(blob.count(t) for t in tokens) + STATUS_RANK.get(h["status"], 0) * 0.4
+        if not min_status:
+            hits += self.search_precedents(tokens, domain, klass, limit)
         hits.sort(key=lambda h: -h["rank"])
         return hits[:limit]
 
@@ -255,4 +331,6 @@ class Index:
             out[f"by_{col}"] = {r[0] or "?": r[1] for r in
                                 self.con.execute(f"SELECT {col}, COUNT(*) FROM cards GROUP BY {col}")}
         out["cached_responses"] = self.con.execute("SELECT COUNT(*) FROM cache").fetchone()[0]
+        out["precedents"] = self.con.execute("SELECT COUNT(*) FROM precedents").fetchone()[0]
+        out["precedents_by_source"] = {r[0]: r[1] for r in self.con.execute("SELECT source, COUNT(*) FROM precedents GROUP BY source")}
         return out
