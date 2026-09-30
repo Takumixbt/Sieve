@@ -81,6 +81,23 @@ def burp_extensions() -> Optional[List[Dict[str, object]]]:
     return [{"name": str(e.get("name", "")), "loaded": bool(e.get("loaded"))} for e in exts if isinstance(e, dict)]
 
 
+def burp_downloaded() -> List[str]:
+    """Names of BApps Burp has downloaded (BappManifest.bmf in its bapps folder), whether or not they are enabled."""
+    cfg = burp_config_path()
+    if not cfg:
+        return []
+    names: List[str] = []
+    for mf in glob.glob(os.path.join(os.path.dirname(cfg), "bapps", "*", "BappManifest.bmf")):
+        try:
+            for line in util.read_text(mf).splitlines():
+                if line.lower().startswith("name:"):
+                    names.append(line.split(":", 1)[1].strip())
+                    break
+        except OSError:
+            continue
+    return names
+
+
 _WSL: Optional[Dict[str, str]] = None
 
 

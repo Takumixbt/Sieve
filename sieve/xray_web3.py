@@ -13,9 +13,8 @@ to a real static analyzer — capturing its own JSON, unmodified — is the same
 work as the grep pass, not a step up in judgment. `run()` auto-invokes both tools when they're
 installed and no report path was explicitly given; their result still lands in `tool_leads`, still
 gated by `judging.md` before it ships, exactly as if the operator had run them by hand and passed
-the path in. See references/xray.md Phase 0 — this used to be operator-supplied corroboration;
-it's now the mechanical layer's own first move, and only falls back to "operator must supply it" or
-"missing, coverage-debt" when the binary genuinely isn't on PATH.
+the path in. See references/xray.md Phase 0. This is the mechanical layer's own first move; it falls back to "operator
+supplies the report" or "missing, coverage debt" only when the binary genuinely isn't on PATH.
 """
 from __future__ import annotations
 
@@ -28,7 +27,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from . import util
 
-AUTO_RUN_TIMEOUT_SEC = 300
+AUTO_RUN_TIMEOUT_SEC = int(os.environ.get("SIEVE_STATIC_TIMEOUT", "180"))
 
 EXCLUDE_DIRS = {"node_modules", "lib", "artifacts", "cache", "out", "broadcast", "coverage", "typechain",
                 "typechain-types", "interfaces", "interface", "mocks", "mock", "test", "tests", ".git", "target",
@@ -209,6 +208,31 @@ def _aderyn_leads(path: str) -> List[Dict[str, Any]]:
     return out
 
 
+def deps_missing(root: str) -> Optional[str]:
+    """Why a compile-based analyzer cannot work on this tree yet, or None. Slither and Aderyn compile the project;
+    on a Hardhat project without node_modules or a Foundry project with empty submodules that means a long hang
+    followed by a failure. Sieve never installs a target's dependencies itself (an install runs the target's own scripts),
+    so it says what to do instead."""
+    hardhat = any(os.path.isfile(os.path.join(root, n)) for n in
+                  ("hardhat.config.ts", "hardhat.config.js", "hardhat.config.cjs", "hardhat.config.mjs"))
+    if hardhat and not os.path.isdir(os.path.join(root, "node_modules")):
+        return ("Hardhat project without node_modules: in a sandbox run `npm ci --ignore-scripts`, "
+                "then `sieve scan --refresh`")
+    if os.path.isfile(os.path.join(root, "foundry.toml")) and os.path.isfile(os.path.join(root, ".gitmodules")):
+        lib = os.path.join(root, "lib")
+        if not os.path.isdir(lib) or not os.listdir(lib):
+            return "Foundry project whose lib/ submodules are not checked out: `git submodule update --init --recursive`, then `sieve scan --refresh`"
+    return None
+
+
+def _last_error(res: Any) -> str:
+    """The last meaningful line a failed analyzer printed, so the coverage-debt note says why."""
+    text = ((getattr(res, "stderr", "") or "") + chr(10) + (getattr(res, "stdout", "") or "")).strip()
+    lines = [l.strip() for l in text.splitlines() if l.strip()]
+    hit = next((l for l in reversed(lines) if any(w in l for w in ("Error", "error", "Exception", "failed", "Invalid"))), lines[-1] if lines else "no output")
+    return hit[:220]
+
+
 def _auto_run_slither(root: str, out_dir: str) -> Tuple[Optional[str], Optional[str]]:
     """Shell out to an installed `slither`, exactly the invocation `local-tooling.md` 2.1 names.
     Returns (json_path, failure_note) — exactly one is non-None. Slither's own exit code is not a
@@ -217,16 +241,19 @@ def _auto_run_slither(root: str, out_dir: str) -> Tuple[Optional[str], Optional[
     exe = shutil.which("slither")
     if not exe:
         return None, None
+    why = deps_missing(root)
+    if why:
+        return None, f"slither: skipped, {why}"
     out_path = os.path.join(out_dir, "slither.json")
     cmd = [exe, root, "--json", out_path]
     try:
-        subprocess.run(cmd, cwd=root, capture_output=True, text=True, timeout=AUTO_RUN_TIMEOUT_SEC)
+        res = subprocess.run(cmd, cwd=root, capture_output=True, text=True, timeout=AUTO_RUN_TIMEOUT_SEC)
     except subprocess.TimeoutExpired:
         return None, f"slither: auto-run timed out after {AUTO_RUN_TIMEOUT_SEC}s (coverage-debt — run manually with a longer budget)"
     except OSError as exc:
         return None, f"slither: auto-run failed to launch ({exc})"
     if not os.path.isfile(out_path):
-        return None, "slither: auto-run produced no JSON output (likely a compilation failure — check the project builds, then run manually)"
+        return None, f"slither: auto-run produced no JSON output (likely a compilation failure: check the project builds, then run manually). Its last error: {_last_error(res)}"
     return out_path, None
 
 
@@ -235,20 +262,23 @@ def _auto_run_aderyn(root: str, out_dir: str) -> Tuple[Optional[str], Optional[s
     exe = shutil.which("aderyn")
     if not exe:
         return None, None
+    why = deps_missing(root)
+    if why:
+        return None, f"aderyn: skipped, {why}"
     out_path = os.path.join(out_dir, "aderyn.json")
     cmd = [exe, root, "--output", out_path]
     try:
-        subprocess.run(cmd, cwd=root, capture_output=True, text=True, timeout=AUTO_RUN_TIMEOUT_SEC)
+        res = subprocess.run(cmd, cwd=root, capture_output=True, text=True, timeout=AUTO_RUN_TIMEOUT_SEC)
     except subprocess.TimeoutExpired:
         return None, f"aderyn: auto-run timed out after {AUTO_RUN_TIMEOUT_SEC}s (coverage-debt — run manually with a longer budget)"
     except OSError as exc:
         return None, f"aderyn: auto-run failed to launch ({exc})"
     if not os.path.isfile(out_path):
-        return None, "aderyn: auto-run produced no JSON output (likely a compilation failure — check the project builds, then run manually)"
+        return None, f"aderyn: auto-run produced no JSON output (likely a compilation failure: check the project builds, then run manually). Its last error: {_last_error(res)}"
     return out_path, None
 
 
-def _auto_run_trailmark(root: str, out_dir: str) -> Tuple[Optional[str], Optional[str]]:
+def _auto_run_trailmark(root: str, out_dir: str, target: Optional[str] = None) -> Tuple[Optional[str], Optional[str]]:
     """Shell out to an installed `trailmark` (`uv tool install trailmark`) to build a call/reference
     graph once — so xray Phase 1's call-chain tracing and blast-radius questions can become graph
     queries instead of a pure manual read (`local-tooling.md` 2.1). Best-effort: trailmark's CLI is
@@ -259,7 +289,9 @@ def _auto_run_trailmark(root: str, out_dir: str) -> Tuple[Optional[str], Optiona
     if not exe:
         return None, None
     out_path = os.path.join(out_dir, "graph.json")
-    cmd = [exe, "analyze", root, "--language", "auto", "--json"]
+    # `trailmark analyze PATH --language auto` prints the graph as JSON on stdout (there is no --json flag). Point it at the
+    # source directory, not the repo root: a root with node_modules or a frontend makes it parse a lot of unrelated code.
+    cmd = [exe, "analyze", target if target and os.path.isdir(target) else root, "--language", "auto"]
     try:
         result = subprocess.run(cmd, cwd=root, capture_output=True, text=True, timeout=AUTO_RUN_TIMEOUT_SEC)
     except subprocess.TimeoutExpired:
@@ -316,20 +348,30 @@ def run(root: str, src_dirs: Optional[List[str]] = None, slither_json: Optional[
 
     # Static analysis is the mechanical layer's first move, not operator-supplied corroboration:
     # auto-invoke every installed tool unless the caller already handed us a report or opted out.
+    results: Dict[str, Any] = {}
     if auto_static:
         os.makedirs(out_dir, exist_ok=True)
-        if not slither_json:
-            slither_json, note = _auto_run_slither(root, out_dir)
-            if slither_json:
-                auto_ran.append("slither")
-            elif note:
-                auto_failed["slither"] = note
-        if not aderyn_json:
-            aderyn_json, note = _auto_run_aderyn(root, out_dir)
-            if aderyn_json:
-                auto_ran.append("aderyn")
-            elif note:
-                auto_failed["aderyn"] = note
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=3) as pool:      # the three analyzers are independent: run them side by side
+            futs = {}
+            if not slither_json:
+                futs["slither"] = pool.submit(_auto_run_slither, root, out_dir)
+            if not aderyn_json:
+                futs["aderyn"] = pool.submit(_auto_run_aderyn, root, out_dir)
+            src0 = os.path.join(root, dirs[0]) if dirs else None
+            futs["trailmark"] = pool.submit(_auto_run_trailmark, root, out_dir, src0)
+            results = {k: f.result() for k, f in futs.items()}
+        for name in ("slither", "aderyn"):
+            if name in results:
+                path_, note = results[name]
+                if name == "slither":
+                    slither_json = path_ or slither_json
+                else:
+                    aderyn_json = path_ or aderyn_json
+                if path_:
+                    auto_ran.append(name)
+                elif note:
+                    auto_failed[name] = note
 
     for path, loader, name in ((slither_json, _slither_leads, "slither"), (aderyn_json, _aderyn_leads, "aderyn")):
         if not path:
@@ -347,13 +389,13 @@ def run(root: str, src_dirs: Optional[List[str]] = None, slither_json: Optional[
 
     graph_path = None
     if auto_static:
-        graph_path, note = _auto_run_trailmark(root, out_dir)
+        graph_path, note = results.get("trailmark", (None, None))
         if graph_path:
             auto_ran.append("trailmark")
         elif note:
             notes.append(note)
         else:
-            notes.append("trailmark: not installed — call-chain tracing stays manual "
+            notes.append("trailmark: not installed, call-chain tracing stays manual "
                          "(optional accelerant, not coverage-debt; local-tooling.md 2.1)")
 
     return {"pack": "web3", "root": root, "generated": util.now_iso(), "src_dirs": dirs,

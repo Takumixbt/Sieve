@@ -53,6 +53,9 @@ def main(argv: List[str] = None) -> int:
         rc = args.func(args)
     except BrokenPipeError:
         return 0
+    finally:
+        from . import kb_store
+        kb_store.close_all()
     return int(rc or 0)
 
 

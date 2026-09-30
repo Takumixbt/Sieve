@@ -358,7 +358,7 @@ def cmd_schema(args: argparse.Namespace) -> int:
 
 
 def register(sub: Any) -> None:
-    p = sub.add_parser("campaign", help="topology-driven static-analysis campaign (ultrafuzz-shaped)")
+    p = sub.add_parser("campaign", help="the topology-driven audit campaign")
     cs = p.add_subparsers(dest="ccmd", required=True)
     q = cs.add_parser("init", help="create the campaign for this engagement")
     q.add_argument("--profile", default=None, type=lambda v: {"smoke": "lite"}.get(v, v),

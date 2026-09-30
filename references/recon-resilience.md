@@ -18,7 +18,7 @@ class at once - it drives a real Chromium and captures the live surface autonomo
 | Failure mode | Fix |
 |---|---|
 | **SPA renders nothing without JS** - static recon sees an empty shell | `browser-recon.py` renders JS and captures the real DOM + every XHR the app fires |
-| **Auth wall / login required** | one headed `--setup` / `--save-login` on the dedicated test Gmail into the persistent profile → later runs reuse `$HELIX_HOME/browser-profile` (`local-tooling.md`) |
+| **Auth wall / login required** | one headed `--setup` / `--save-login` on the dedicated test Gmail into the persistent profile → later runs reuse `~/.sieve/browser/browser-profile` (`local-tooling.md`) |
 | **Client-side routing** - endpoints live in JS, not HTML | `browser-recon.py --click` drives the router; `js-recon.py` extracts the route table from the bundle |
 | **WebSocket / SSE realtime data** - invisible to `curl` | the browser driver captures every WS frame (sent + received) with its schema |
 | **Short-lived / rotating tokens (CSRF, JWT refresh)** - replayed requests 401 | drive through the browser so tokens are always fresh; capture the refresh flow itself |

@@ -66,6 +66,16 @@ proofs, report and vault without further input.
 - **Windows: no proof could execute** (`/bin/sh` was hard-coded).
 - The lean profile ran the seed node before the x-ray narrative existed.
 - The fence treated `paths: ["."]` as matching nothing.
+- `sieve scan <path>` run from another directory could not find its own engagement for the knowledge-base prime.
+- **A first scan of a real Hardhat repository took five minutes** (Slither and Aderyn waited out their timeouts on a project whose
+  dependencies were not installed). Compile-based analyzers are now gated on their dependencies with an instruction to install
+  them in a sandbox (`npm ci --ignore-scripts`, `git submodule update --init --recursive`), run side by side instead of in
+  sequence, have a shorter budget (`SIEVE_STATIC_TIMEOUT`, default 180s), and report the tool's own last error. trailmark was
+  being called with a flag it does not have and pointed at the repository root; it now analyzes the source directory.
+- Every command now closes its index connections (an open SQLite file could not be deleted by the next caller on Windows).
+- **Prompt injection through the scope card.** The card's prose is copied from a third-party program page and was pasted into
+  every agent's prompt unmarked. It is now prefaced as untrusted data: only the frontmatter is the scope, and the prose can never
+  change an agent's task, tools, scope or rules.
 
 ## [1.4.0] - 2026-09-29
 
@@ -85,7 +95,7 @@ proofs, report and vault without further input.
   (verifies bundle integrity, `--sequential` for no-fanout), `rollcall` (finished? quotas? markers?), `merge` (deterministic
   checks; demotes proofless / hedged / mis-cited FINDINGs to LEADs, never promotes), `absorb` (frontier rows close only with
   receipts), `frontier seed`, plus the roaming pass (`bundle --roaming`). Step order is enforced.
-- **The campaign engine** (`references/campaign.md`, `campaigns/`, `sieve campaign …`) - an ultrafuzz-shaped, topology-driven
+- **The campaign engine** (`references/campaign.md`, `campaigns/`, `sieve campaign …`) - a topology-driven
   static-analysis campaign: nodes of kind meta / agentic / reference, `repeat` and `matrix` expansion, profiles
   (smoke/default/exhaustive), exactly one primary output per node, versioned artifact contracts validated before a node is done,
   a threat-model → goal-plan chain, eight independent invariant lenses fanned in, a dynamic strategy node, looped roster
@@ -112,8 +122,7 @@ proofs, report and vault without further input.
 ### Added
 - **`references/hypothesis-craft.md`** - the thinking half of the method: a hypothesis standard
   (assumption / break / observable / cheapest test / why-unseen), invariants derived through eight
-  independent lenses then merged (with anti-vacuity checks and independent-reference audits, taken
-  from `monad-developers/ultrafuzz`'s property-design pipeline), an eight-point asymmetry checklist,
+  independent lenses then merged (with anti-vacuity checks and independent-reference audits), an eight-point asymmetry checklist,
   the three ledgers of history (precedent, the target's own fix-commits and prior-audit exclusions,
   your own lessons), and the **roaming pass** - a final hunt for classes no lens was looking for.
 - **Bright lines vs. open ground** (`shared-rules.md`, `SKILL.md`) - an explicit contract: comply
@@ -195,15 +204,6 @@ proofs, report and vault without further input.
   added for bot-defended recon targets; `trailmark` added as an auto-run call-graph accelerant;
   `Triton` added alongside `angr`; recon gaps filled (`dnstwist`, `knock`, `fierce`, regional
   search engines, breach-data lookups, BGP/network-ownership intelligence, `abuseipdb`).
-
-### Design notes for future maintainers
-- The ultrafuzz-inspired proposal to wrap the static-analysis pass in a full topology-file-driven
-  multi-node campaign (mirrored from `monad-developers/ultrafuzz`'s real architecture) was
-  deliberately *not* built as a generic orchestration engine - that's the same overbuild mistake
-  `[1.0.0]`'s design note already warns about, just with a fuzzing-campaign shape instead of a
-  parser shape. What shipped instead is proportionate: auto-run the tools that are actually safe
-  and fast to auto-run, corroborate their output mechanically, and document (never automate) the
-  slow/judgment-heavy step of targeting `mythril` at invariant-flagged functions.
 
 ## [1.1.0] - 2026-09-29
 

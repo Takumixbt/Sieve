@@ -1,4 +1,4 @@
-"""The campaign engine — an ultrafuzz-shaped, topology-driven static-analysis campaign.
+"""The campaign engine: a topology-driven audit campaign.
 
 A campaign is a DAG of nodes declared in `campaigns/campaign.yml` (copied per engagement to
 `.sieve/campaign/topology.yml`, where it and its prompts can be edited). Three node kinds:
@@ -31,6 +31,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from . import campaign_schema as schema
 from . import pipeline, repo_root, util, yamlish
+from .fence import card_for_prompt
 from .state import Engagement
 
 KINDS = ("meta", "agentic", "reference")
@@ -602,7 +603,7 @@ def render_prompt(eng: Engagement, node: Dict[str, Any], nodes: List[Dict[str, A
     hc = util.read_text(os.path.join(repo_root(), "references", "hypothesis-craft.md"))
     text = "\n".join([
         head, "## Your task\n", task.strip(), "\n## Inputs from earlier nodes\n", _inline(eng, node, by),
-        "\n## Scope card (the fence — `.sieve/case.md`)\n", util.read_text(eng.case_path()) if os.path.isfile(eng.case_path()) else "_(none)_",
+        "\n## Scope card (the fence — `.sieve/case.md`)\n", card_for_prompt(eng, "_(none)_"),
         "\n## Output\n", f"Write these files, exactly:\n{outs}\n", contracts,
         "\nThe engine validates the file(s) before this node counts as done; a rejected artifact comes back to you with "
         "the exact errors. Your last action: `sieve campaign submit " + node["id"] + "`.",

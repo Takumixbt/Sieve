@@ -12,6 +12,12 @@ community, most directly [Pashov Audit Group's public skills](https://github.com
 (MIT). `scripts/generate_svg.py` is vendored from that same source, MIT-licensed; its required
 license notice is preserved in the file's own header.
 
+## Design lineage
+
+The campaign's shape (a topology of prompts and checked hand-offs, independent invariant lenses merged, a dynamic strategy
+node, a triage panel) follows the public design of [monad-developers/ultrafuzz](https://github.com/monad-developers/ultrafuzz)
+(MIT). Sieve's engine, verdict rules and everything else in this repository are its own code.
+
 ## Knowledge base
 
 [Cyfrin / Solodit](https://solodit.cyfrin.io) - the web3 precedent database `references/knowledge.md`

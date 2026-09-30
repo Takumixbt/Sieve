@@ -16,6 +16,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from . import blocks as B
 from . import frontier, repo_root, util, vectors, yamlish
 from .config import load_config
+from .fence import card_for_prompt
 from .state import Engagement
 
 REFERENCES = ("methodology.md", "hypothesis-craft.md", "shared-rules.md")
@@ -257,7 +258,7 @@ def build_bundle(eng: Engagement, n: int, agent: Dict[str, Any]) -> Tuple[str, i
                         f"# Bundle — {agent['id']} (pass {n})\n\nRead this whole file before you hunt. It holds your scope, "
                         f"your lens, the finding format and the anti-hallucination protocol. Do not re-derive any of it."]
     parts.append(_section(1, total, "SCOPE CARD — the fence (.sieve/case.md)",
-                          _read_or(eng.case_path(), "**NO SCOPE CARD — do not touch anything.**")))
+                          card_for_prompt(eng, "**NO SCOPE CARD - do not touch anything.**")))
     xr = [f"### xray/{name}\n\n{util.read_text(eng.path('xray', name))}" for name in XRAY_FILES
           if os.path.isfile(eng.path("xray", name))]
     parts.append(_section(2, total, "X-RAY — what the pre-hunt map found",
@@ -299,7 +300,7 @@ def build_roaming_bundle(eng: Engagement, n: int) -> Tuple[str, int, str]:
              "# Bundle — the roaming pass\n\nYou have no lens and no vector cards on purpose. Everyone on the roster "
              "looked through a named lens; you look for what none of them owned."]
     parts.append(_section(1, total, "SCOPE CARD — the fence (.sieve/case.md)",
-                          _read_or(eng.case_path(), "**NO SCOPE CARD.**")))
+                          card_for_prompt(eng, "**NO SCOPE CARD.**")))
     xr = [f"### xray/{name}\n\n{util.read_text(eng.path('xray', name))}" for name in XRAY_FILES
           if os.path.isfile(eng.path("xray", name))]
     parts.append(_section(2, total, "X-RAY", "\n\n".join(xr) or "_(none)_"))

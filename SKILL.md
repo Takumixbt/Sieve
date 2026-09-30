@@ -89,7 +89,11 @@ a silent skip. It writes `.sieve/preflight.md` as the engagement's receipt. Tool
 
 **Turn 3: scan.** `sieve scan <root>`. It runs the x-ray, every installed static analyzer (Slither, Aderyn,
 trailmark), the static rules, the knowledge-base prime and the frontier seed, with no model and no traffic, and ends
-with a measured profile recommendation and what each profile would dispatch. Read it, then choose the depth and record
+with a measured profile recommendation and what each profile would dispatch. If it reports an analyzer as skipped for missing dependencies (a Hardhat project without `node_modules`, a Foundry project
+with empty `lib/` submodules), install them yourself in a sandbox that cannot reach anything sensitive
+(`npm ci --ignore-scripts`, `git submodule update --init --recursive`; never run a target's own install scripts on your
+real environment) and re-run `sieve scan --refresh`; Slither and Aderyn are worth the extra minute.
+Read it, then choose the depth and record
 the choice and its reason in `assumptions.md`:
 - **a live bounty with real money in scope, or "a full audit": `exhaustive`** (all eight lenses, three hunt loops,
   a triage quorum of three, property fuzzing, the independence audit). This is the relentless setting.

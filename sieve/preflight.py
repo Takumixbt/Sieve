@@ -127,9 +127,17 @@ def run(cfg: Config, identity: bool = True, mcp: bool = True) -> List[Dict[str, 
         loaded = [e["name"] for e in exts if e["loaded"]]
         missing_b = [b for b in BAPPS_WANTED if not any(b.lower() in n.lower() for n in loaded)]
         has_mcp = any("mcp" in n.lower() for n in loaded)
+        have_files = tooling.burp_downloaded()
+        dl_only = [b for b in missing_b if any(b.lower() in n.lower() for n in have_files)]
+        absent = [b for b in missing_b if b not in dl_only]
+        fixes = []
+        if dl_only:
+            fixes.append("downloaded but not enabled: " + ", ".join(dl_only) + " (Burp > Extensions > Installed: enable it; a Python BApp such as "
+                         "Autorize needs the Jython jar set under Extensions > Extension settings > Python environment)")
+        if absent:
+            fixes.append("Burp > Extensions > BApp Store > install " + ", ".join(absent))
         add(_check("burp", "BApps loaded", OK if not missing_b else WARN, "loaded: " + (", ".join(loaded) or "none")
-                   + ("; missing: " + ", ".join(missing_b) if missing_b else ""),
-                   "Burp > Extensions > BApp Store > install " + ", ".join(missing_b) if missing_b else ""))
+                   + ("; missing: " + ", ".join(missing_b) if missing_b else ""), "; ".join(fixes)))
         if not has_mcp:
             add(_check("burp", "MCP extension", WARN, "no MCP extension is loaded in Burp", "BApp Store > MCP Server"))
 
@@ -198,6 +206,22 @@ def run(cfg: Config, identity: bool = True, mcp: bool = True) -> List[Dict[str, 
                 s = ms.get(name)
                 add(_check("mcp", name, OK if s == "connected" else WARN, f"{s or 'not registered'}: {want}",
                            {"burp": "claude mcp add --transport http burp http://" + mcp_addr, "v12": "claude mcp add --transport http v12 https://v12.sh/api/mcp"}[name]))
+
+    # ---- containers (MobSF for mobile targets)
+    docker = shutil.which("docker")
+    if docker:
+        try:
+            up = subprocess.run([docker, "info", "--format", "{{.ServerVersion}}"], capture_output=True, text=True, timeout=20).returncode == 0
+        except (OSError, subprocess.TimeoutExpired):
+            up = False
+        if up:
+            imgs = subprocess.run([docker, "images", "--format", "{{.Repository}}"], capture_output=True, text=True, timeout=20).stdout
+            have_mobsf = "mobile-security-framework-mobsf" in imgs
+            add(_check("containers", "docker + MobSF image", OK if have_mobsf else WARN,
+                       "Docker is up; MobSF image " + ("present" if have_mobsf else "not pulled"),
+                       "docker pull opensecurity/mobile-security-framework-mobsf:latest"))
+        else:
+            add(_check("containers", "docker", WARN, "installed but the engine is not running", "start Docker Desktop"))
 
     # ---- keys (presence only; never the values)
     key_file = os.path.expanduser(str(cfg.get("tools.etherscan_key_file", "~/.claude/secrets/etherscan_api_key.txt")))

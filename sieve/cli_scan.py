@@ -52,6 +52,7 @@ def cmd_scan(args: argparse.Namespace) -> int:
     root = os.path.abspath(args.target)
     if not os.path.isdir(root):
         raise SystemExit(f"sieve scan: {root} is not a directory (scan reads a local source tree)")
+    os.chdir(root)      # several steps (the knowledge-base prime) locate the engagement from the working directory
     packs = [p.strip() for p in args.pack.split(",") if p.strip()] if args.pack else scanlib.detect_packs(root)
     if not packs:
         raise SystemExit("sieve scan: could not tell which pack this tree needs; pass --pack web3,web,binary")

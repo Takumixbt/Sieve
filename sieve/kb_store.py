@@ -137,6 +137,19 @@ def iter_card_files(*dirs: str) -> Iterable[str]:
 
 # ---------------------------------------------------------------- index
 
+_OPEN: List["Index"] = []
+
+
+def close_all() -> None:
+    """Close every index connection this process opened. A command must not leave its database locked: on Windows an open
+    SQLite file cannot be deleted or moved by the next caller."""
+    while _OPEN:
+        try:
+            _OPEN.pop().close()
+        except Exception:  # noqa: BLE001 - closing must never raise out of a finished command
+            pass
+
+
 class Index:
     SCHEMA = """
     CREATE TABLE IF NOT EXISTS cards(id TEXT PRIMARY KEY, path TEXT, source TEXT, source_ref TEXT,
@@ -155,6 +168,7 @@ class Index:
     def __init__(self, path: str):
         os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
         self.path = path
+        _OPEN.append(self)
         self.con = sqlite3.connect(path, timeout=30, isolation_level=None)
         self.con.row_factory = sqlite3.Row
         self.con.execute("PRAGMA journal_mode=WAL")
