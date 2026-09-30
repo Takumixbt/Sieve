@@ -35,6 +35,19 @@ from .fence import card_for_prompt
 from .state import Engagement
 
 KINDS = ("meta", "agentic", "reference")
+
+# Panelists run on the same model, so isolation alone gives correlated blind spots. Each panelist attacks the candidate from a
+# different angle, which is what makes agreement mean something.
+PANEL_FOCI = [
+    "CODE PATH. Your angle is mechanical refutation: walk the exact call path from the attacker's entry point and find the "
+    "guard, revert, check or invariant that blocks the claimed step. Quote it with file:line, or prove there is none.",
+    "ECONOMICS AND PRECONDITIONS. Your angle is whether a real attacker gets paid: what capital, timing, state and privileges "
+    "does it need, can those be obtained by an unprivileged party in one transaction or request sequence, and is the "
+    "profit or damage material to an identifiable victim?",
+    "INTENT AND PRIOR ART. Your angle is whether this is even a bug: does it violate a documented promise or a numbered "
+    "invariant, or is it intended behaviour, a known trade-off, an already-reported issue or an out-of-scope class? Check the "
+    "scope card's known issues and prior audits before anything else.",
+]
 DONE_LIKE = ("done", "skipped")
 _TPL = re.compile(r"\{(\w+)(?:-(\d+))?\}")
 
@@ -567,6 +580,11 @@ def render_prompt(eng: Engagement, node: Dict[str, Any], nodes: List[Dict[str, A
     os.makedirs(ndir, exist_ok=True)
     out_path = os.path.join(ndir, "prompt.md")
     v = dict(node["vars"], profile=profile, node=node["id"], packs=",".join(st["packs"]), engagement=st["id"])
+    if "panelist" in node["vars"]:
+        try:
+            v["panel_focus"] = PANEL_FOCI[(int(node["vars"]["panelist"]) - 1) % len(PANEL_FOCI)]
+        except (TypeError, ValueError):
+            v["panel_focus"] = PANEL_FOCI[0]
     head = (f"<!-- SIEVE CAMPAIGN NODE · {node['id']} · profile {profile} · engagement {st['id']} · {util.now_iso()} -->\n"
             f"# Campaign node — `{node['id']}`\n\nEngagement `{st['name']}` · packs {v['packs']}. "
             f"{node['description']}\n")

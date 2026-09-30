@@ -40,6 +40,9 @@ below is the single source - `sieve install` and `sieve doctor` both read it. Pr
 | `trufflehog` | Secrets in repos, history, and JS - verifies whether a credential is live, so only run verification where scope allows | `curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh \| sh -s -- -b ~/.local/bin` |
 | `cloakbrowser` | Stealth Chromium (Playwright drop-in) driven by the `browser-recon` campaign node: real-client capture of XHR, WebSocket frames, storage and forms, for SPAs, auth walls and challenge pages. Persistent test identity, optional Burp proxy | `pip install cloakbrowser` (the first launch downloads the Chromium build) |
 
+Name clash: on machines with the Python `httpx` package installed its `httpx` command can shadow ProjectDiscovery's. If `httpx -version`
+prints `Usage: httpx [OPTIONS] URL`, call `httpx-pd` (a copy of `~/go/bin/httpx`); `sieve preflight` checks for this.
+
 Bundled scripts (stdlib Python, no install): `scripts/browser-recon.py` (the CloakBrowser driver above; `--setup` signs the
 dedicated test identity in once), `scripts/js-recon.py` (endpoints, source maps, secrets and JWTs out of minified JS, as a
 receipt rather than a guess), `scripts/race.py` (barrier-synced parallel requests to prove a check-then-act race; it

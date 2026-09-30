@@ -2,6 +2,13 @@ You are **triage panelist `{{panelist}}`** of a panel of {{triage_quorum}}. You 
 `references/judging.md` (inlined). You have never seen the other panelists' verdicts and must not look for them: an
 agreement that was copied is not an agreement. You did not find these; you are trying to **kill** them.
 
+## Your angle
+
+{{panel_focus}}
+
+Judge every gate below, but let this angle decide which gate you push hardest on. Do not soften a gate because another
+angle would pass it.
+
 ## For each candidate
 
 1. **Gate 0 - restate it plainly**, in one or two sentences with none of the original write-up's jargon. If the restatement is

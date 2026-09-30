@@ -76,3 +76,37 @@ def add(eng: Engagement, raw: Dict[str, Any]) -> Dict[str, int]:
         os.makedirs(os.path.dirname(path(eng)), exist_ok=True)
         util.write_json(path(eng), leads)
     return apply(eng)
+
+
+_STOP = set("the a an of to in on for and or is are be by with from this that it as at not no can may via when if any all".split())
+
+
+def _tokens(text: str) -> set:
+    return {t for t in re.findall(r"[a-z][a-z0-9_]{2,}", text.lower()) if t not in _STOP}
+
+
+def known_issues(eng: Engagement) -> List[str]:
+    """The lines under `## Known issues and prior audits` in the scope card: what the program already knows about."""
+    p = eng.case_path()
+    if not os.path.isfile(p):
+        return []
+    text = util.read_text(p)
+    m = re.search(r"(?ms)^## Known issues and prior audits\s*$(.*?)(?=^## |\Z)", text)
+    if not m:
+        return []
+    return [l.strip("-* 	") for l in m.group(1).splitlines() if len(_tokens(l)) >= 3]
+
+
+def possible_duplicate(eng: Engagement, title: str, component: str, klass: str) -> str:
+    """The known-issue line a finding most resembles, or "". Duplicates are the most common rejection on every platform: this
+    is a flag for a human-grade look, never an automatic rejection."""
+    mine = _tokens(f"{title} {component} {klass}")
+    best, best_score = "", 0.0
+    for line in known_issues(eng):
+        theirs = _tokens(line)
+        shared = mine & theirs
+        if len(shared) >= 3:
+            score = len(shared) / max(1, min(len(mine), len(theirs)))
+            if score > best_score:
+                best, best_score = line, score
+    return best if best_score >= 0.5 else ""

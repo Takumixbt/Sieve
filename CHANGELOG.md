@@ -53,6 +53,15 @@ proofs, report and vault without further input.
 - A Dataview `_Dashboard.md` in the vault (findings by severity, machine-confirmed findings, unprobed invariants).
 - Windows: `bin/sieve.cmd`, `bin/sieve.py`, and a Stop-hook command that works without a POSIX shell.
 
+- **Duplicate flag.** Every known issue and prior-audit finding written under `## Known issues and prior audits` in the scope
+  card is compared with each candidate at the reportability gate; a close match is printed in the report as "Possible duplicate"
+  with the matching line. It flags, never rejects. Duplicates are the most common rejection on every platform.
+- **Triage panelists attack from different angles** (code-path refutation, economics and preconditions, intent and prior art)
+  instead of three copies of one prompt, so agreement between them means something.
+- **Reasoning quotas need substance**: a `[Feynman: ...]`, `[Socratic: ...]` or `[Inversion: ...]` marker counts only with at
+  least 20 characters of reasoning after the label, and each must be distinct.
+- `sieve preflight` warns when the Python `httpx` CLI shadows ProjectDiscovery's `httpx`; tool lookup prefers `~/go/bin`.
+
 ### Changed
 - **One way to run an engagement.** `SKILL.md` is the agent's script: intake from the link, scan, campaign loop, report, learn.
   The hand-driven pass commands remain as the machinery underneath (`references/dispatch.md`).

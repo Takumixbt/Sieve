@@ -161,7 +161,16 @@ EXTRA_BIN_GLOBS = ["~/AppData/Local/Microsoft/WinGet/Packages/*/platform-tools",
 _EXES = ("", ".exe", ".cmd", ".bat")
 
 
+# Names another program also uses: prefer the security tool's own install location over whatever PATH finds first.
+PREFER_DIRS = {"httpx": ["~/go/bin"]}
+
+
 def find_bin(name: str) -> Optional[str]:
+    for d in PREFER_DIRS.get(name, []):
+        for ext in (("", ".exe") if os.name == "nt" else ("",)):
+            cand = os.path.join(os.path.expanduser(d), name + ext)
+            if os.path.isfile(cand):
+                return cand
     hit = shutil.which(name)
     if hit:
         return hit

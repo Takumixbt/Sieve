@@ -111,6 +111,15 @@ def run(cfg: Config, identity: bool = True, mcp: bool = True) -> List[Dict[str, 
         else:
             add(_check("tools", f"{pack} tools", OK, f"{have} ready" + (f"; manual: {', '.join(manual)}" if manual else "")))
 
+    # ---- name clashes: the Python `httpx` CLI shadows ProjectDiscovery's httpx on many machines
+    go_httpx = os.path.join(os.path.expanduser("~"), "go", "bin", "httpx.exe" if os.name == "nt" else "httpx")
+    first = shutil.which("httpx")
+    if os.path.isfile(go_httpx) and first and os.path.normcase(first) != os.path.normcase(go_httpx):
+        alias = os.path.join(os.path.dirname(go_httpx), "httpx-pd" + (".exe" if os.name == "nt" else ""))
+        add(_check("tools", "httpx name clash", OK if os.path.isfile(alias) else WARN,
+                   f"`httpx` on PATH is {first}, not ProjectDiscovery's; use `httpx-pd` ({alias})",
+                   f"cp {go_httpx} {alias}"))
+
     # ---- burp
     burp_cfg = cfg.get("tools.burp", {}) or {}
     proxy_addr = str(burp_cfg.get("proxy", "127.0.0.1:8080"))

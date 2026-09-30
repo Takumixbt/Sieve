@@ -82,7 +82,8 @@ a silent skip. It writes `.sieve/preflight.md` as the engagement's receipt. Tool
   repo. For a deployed contract, fetch the verified source and **prove the checkout matches the on-chain bytecode
   before auditing it**; a stale clone silently invalidates every finding.
 - *Sweep prior art before hunting*: prior audit PDFs in the repo, contest reports, the program's disclosed reports
-  (`knowledge.md`). It kills duplicates and shows where nobody has looked.
+  (`knowledge.md`). It kills duplicates and shows where nobody has looked. Write every known issue and prior-audit finding as
+  one line under `## Known issues and prior audits` in `case.md`: the reportability gate flags any candidate that resembles one.
 - Create the engagement in the target tree (`sieve init <root> --pack <packs>` or let `sieve scan` do it), then fill
   `.sieve/case.md` **completely**. Print the resolved scope (hosts, contracts, paths, whether active testing is
   permitted). Nothing outside it is ever touched.

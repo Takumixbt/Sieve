@@ -410,6 +410,10 @@ def act_reportability(eng: Engagement, node: Dict[str, Any], nodes: List[Dict[st
                     break
         if re.sub(r"[^a-z0-9]+", "", str(meta.get("class", "")).lower()) in oos:
             reasons.append(f"class {meta.get('class')} is listed under out_of_scope.vulns")
+        from . import leads as leadslib
+        dup = leadslib.possible_duplicate(eng, str(meta.get("title", "")), str(meta.get("component", "")), str(meta.get("class", "")))
+        if dup:
+            validate.write_finding_meta(eng, fid, {"possible_duplicate": dup[:200]})
         votes = [(p.get("panelist", "panel"), v) for p in panel for v in p.get("verdicts", []) if v.get("finding_id") == fid]
         entry: Dict[str, Any] = {"gate_reasons": reasons, "votes": len(votes)}
         try:

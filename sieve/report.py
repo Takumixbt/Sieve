@@ -82,6 +82,8 @@ def render_finding(f: Dict[str, Any], n: int, a: Optional[Dict[str, Any]] = None
     if conf is not None:
         head = f"### {n}. **[{conf}]** {f.get('title', f['id'])} (`{f['id']}`)"
     meta_line = f"`{f.get('pack', '')}/{f.get('component', f.get('class', ''))}` · {f.get('class', '')}"
+    if f.get("possible_duplicate"):
+        meta_line += chr(10) + chr(10) + f"> **Possible duplicate.** Resembles a known issue on the scope card: {f['possible_duplicate']}. Check it before submitting."
     if f.get("severity"):
         meta_line += f" · {str(f['severity']).capitalize()}"
     if f.get("cwe"):

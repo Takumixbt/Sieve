@@ -146,7 +146,15 @@ def done_marker(text: str) -> Optional[Dict[str, Any]]:
 
 
 def count_markers(text: str) -> Dict[str, int]:
-    return {k: len(re.findall(r"\[\s*" + k + r"\b", text, re.I)) for k in ("Feynman", "Socratic", "Inversion")}
+    """Reasoning markers that carry reasoning: `[Feynman: ...]` with at least 20 characters after the label, each distinct
+    (repeating one sentence, or emitting bare `[Socratic]` tags, does not satisfy the quota)."""
+    out: Dict[str, int] = {}
+    for k in ("Feynman", "Socratic", "Inversion"):
+        seen = set()
+        for m in re.finditer(r"\[\s*" + k + r"\b[\s:.-]*([^\]\n]{20,})", text, re.I):
+            seen.add(re.sub(r"\W+", " ", m.group(1).lower()).strip())
+        out[k] = len(seen)
+    return out
 
 
 def techniques(blocks: List[Dict[str, Any]]) -> List[str]:
